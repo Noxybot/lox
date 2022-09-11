@@ -9,6 +9,9 @@ add_subdirectory(parser)
 add_subdirectory(interpreter)
 add_subdirectory(core)
 
+add_subdirectory(tests)
+
 add_executable(main main.cpp)
 
-target_link_libraries(main PRIVATE lexer parser interpreter)
+target_link_libraries(main PRIVATE interpreter)
+

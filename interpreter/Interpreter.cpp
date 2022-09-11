@@ -1,11 +1,19 @@
 #include "Interpreter.h"
 
-#include "BinOp.h"
-#include "Num.h"
-
-#include <string>
-
+#include "Lexer.h"
+#include "Parser.h"
 #include "UnaryOp.h"
+
+#include "Num.h"
+#include "BinOp.h"
+#include "UnaryOp.h"
+
+struct Interpreter::make_shared_enabler : Interpreter
+{
+	template <typename... Args>
+	make_shared_enabler(Args &&... args)
+		: Interpreter(std::forward<Args>(args)...) {}
+};
 
 Interpreter::Interpreter(std::shared_ptr<Parser> parser)
 	: m_parser(std::move(parser))
@@ -15,6 +23,14 @@ int Interpreter::Interpret()
 {
 	auto root = m_parser->Parse();
 	return root ? root->Accept(*this) : -1;
+}
+
+std::shared_ptr<Interpreter> Interpreter::Create(std::string text)
+{
+	auto res = std::make_shared<make_shared_enabler>(
+		std::make_shared<Parser>(
+			std::make_shared<Lexer>(std::move(text))));
+	return res;
 }
 
 int Interpreter::Visit(const ast::Num& num_node)
