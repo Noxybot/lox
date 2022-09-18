@@ -1,12 +1,7 @@
 #include "Interpreter.h"
 
-#include "Lexer.h"
+//#include "Lexer.h"
 #include "Parser.h"
-#include "UnaryOp.h"
-
-#include "Num.h"
-#include "BinOp.h"
-#include "UnaryOp.h"
 
 struct Interpreter::make_shared_enabler : Interpreter
 {
@@ -21,26 +16,26 @@ Interpreter::Interpreter(std::shared_ptr<Parser> parser)
 
 int Interpreter::Interpret()
 {
-	auto root = m_parser->Parse();
-	return root ? root->Accept(*this) : -1;
+	//const auto root = m_parser->Parse();
+	return 0; //root ? root->Accept(*this) : -1;
 }
 
 std::shared_ptr<Interpreter> Interpreter::Create(std::string text)
 {
-	auto res = std::make_shared<make_shared_enabler>(
-		std::make_shared<Parser>(
-			std::make_shared<Lexer>(std::move(text))));
-	return res;
+	//auto res = std::make_shared<make_shared_enabler>(
+	//	std::make_shared<Parser>(
+	//		std::make_shared<Lexer>(std::move(text))));
+	return 0;
 }
 
-int Interpreter::Visit(const ast::Num& num_node)
+/*int Interpreter::Visit(const ast::Num& num_node)
 {
 	return num_node.GetNum();
 }
 
 int Interpreter::Visit(const ast::BinOp& bin_op_node)
 {
-	switch (bin_op_node.GetOpType())
+	/*switch (bin_op_node.GetOpType())
 	{
 	case TokenType::PLUS:
 		return bin_op_node.GetLeftNode().Accept(*this) + 
@@ -56,7 +51,8 @@ int Interpreter::Visit(const ast::BinOp& bin_op_node)
 			bin_op_node.GetRightNode().Accept(*this);
 	default:
 		throw std::exception("Failed to interpret");
-	}
+	}#1#
+	return 0;
 }
 
 int Interpreter::Visit(const ast::UnaryOp& unary_op_node)
@@ -64,4 +60,4 @@ int Interpreter::Visit(const ast::UnaryOp& unary_op_node)
 	if (unary_op_node.GetOpType() == TokenType::MINUS)
 		return -unary_op_node.GetChild().Accept(*this);
 	return unary_op_node.GetChild().Accept(*this);
-}
+}*/

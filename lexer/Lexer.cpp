@@ -1,58 +1,207 @@
-#include "Lexer.h"
+module;
+#include <cctype>
+#include <unordered_map>
+
+module lexer;
+
+import log;
+
+static std::unordered_map<std::string_view, TokenType> keywords
+{
+	{"and", TokenType::AND},
+	{"class", TokenType::CLASS},
+	{"else", TokenType::ELSE},
+	{"false", TokenType::FALSE},
+	{"for", TokenType::FOR},
+	{"fun", TokenType::FUN},
+	{"if", TokenType::IF},
+	{"or", TokenType::OR},
+	{"print", TokenType::PRINT},
+	{"return", TokenType::RETURN},
+	{"super", TokenType::SUPER},
+	{"this", TokenType::THIS},
+	{"true", TokenType::TRUE},
+	{"var", TokenType::VAR},
+	{"while", TokenType::WHILE},
+};
+
+static bool IsAlphanumeric(char ch)
+{
+	return std::isalnum(ch) || ch == '_';
+}
+
 
 Lexer::Lexer(std::string text)
 	: m_text(std::move(text))
 {
-	m_text.erase(std::remove_if(m_text.begin(), m_text.end(), isspace), m_text.end());
+	//m_text.erase(std::remove_if(m_text.begin(), m_text.end(), isspace), m_text.end());
 }
 
-Token Lexer::GetNextToken()
+void Lexer::AddNextToken()
 {
-	if (m_curr_pos >= m_text.size())
-		return Token(TokenType::EOFF, ' ');
-	char ch = m_text[m_curr_pos];
-	std::string curr_num_val;
-	while (std::isdigit(ch))
+	const char c = Advance();
+	switch (c)
 	{
-		curr_num_val += ch;
-		++m_curr_pos;
-		if (m_curr_pos >= m_text.size())
-			break;
-		ch = m_text[m_curr_pos];
+	case '(': AddToken(TokenType::LEFT_PAREN); break;
+	case ')': AddToken(TokenType::RIGHT_PAREN); break;
+	case '{': AddToken(TokenType::LEFT_BRACE); break;
+	case '}': AddToken(TokenType::RIGHT_BRACE); break;
+	case ',': AddToken(TokenType::COMMA); break;
+	case '.': AddToken(TokenType::DOT); break;
+	case '-': AddToken(TokenType::MINUS); break;
+	case '+': AddToken(TokenType::PLUS); break;
+	case ';': AddToken(TokenType::SEMICOLON); break;
+	case '*': AddToken(TokenType::STAR); break;
+	case '!':
+		AddToken(CheckMatchNext('=') ? TokenType::BANG_EQUAL : TokenType::BANG);
+		break;
+	case '=':
+		AddToken(CheckMatchNext('=') ? TokenType::EQUAL_EQUAL : TokenType::EQUAL);
+		break;
+	case '<':
+		AddToken(CheckMatchNext('=') ? TokenType::LESS_EQUAL : TokenType::LESS);
+		break;
+	case '>':
+		AddToken(CheckMatchNext('=') ? TokenType::GREATER_EQUAL : TokenType::GREATER);
+		break;
+	case '/':
+		// Only one-lined comments
+		if (CheckMatchNext('/'))
+		{
+			while (Peek() != '\n' && !IsAtEnd())
+				Advance();
+		}
+		else
+			AddToken(TokenType::SLASH);
+		break;
+	case ' ':
+	case '\r':
+	case '\t':
+		// Ignore whitespace.
+		break;
+	case '\n':
+		++m_line;
+		break;
+	case '"':
+		ConsumeStringLiteral();
+		break;
+	default:
+		if (std::isdigit(c))
+			ConsumeNumericLiteral();
+		else if (IsAlphanumeric(c))
+			ConsumeIdentifier();
+		else
+			Error(m_line, "Unexpected character.");  break;
 	}
-	if (!curr_num_val.empty())
+}
+
+std::vector<Token> Lexer::GetTokens()
+{
+	while (!IsAtEnd())
 	{
-		return Token(TokenType::INTEGER, std::move(curr_num_val));
+		m_start_pos = m_curr_pos;
+		AddNextToken();
 	}
-	if (ch == '+')
+	m_tokens.emplace_back(TokenType::END_OF_FILE, "", LiteralT{}, m_line);
+	return std::move(m_tokens);
+}
+
+bool Lexer::IsAtEnd() const
+{
+	return m_curr_pos >= m_text.size();
+}
+
+char Lexer::Advance()
+{
+	return m_text[m_curr_pos++];
+}
+
+bool Lexer::CheckMatchNext(char expected)
+{
+	if (IsAtEnd())
+		return false;
+	if (m_text[m_curr_pos] != expected)
+		return false;
+	++m_curr_pos;
+	return true;
+}
+
+char Lexer::Peek() const
+{
+	if (IsAtEnd())
+		return '\0';
+	return m_text[m_curr_pos];
+}
+
+char Lexer::PeekNext() const
+{
+	if (m_curr_pos + 1 >= m_text.size())
+		return '\0';
+	return m_text[m_curr_pos + 1];
+}
+
+int Lexer::GetLexemeSize() const
+{
+	return m_curr_pos - m_start_pos;
+}
+
+void Lexer::ConsumeStringLiteral()
+{
+	while (Peek() != '"' && !IsAtEnd())
 	{
-		++m_curr_pos;
-		return Token(TokenType::PLUS, ch);
+		if (Peek() == '\n')
+			++m_line;
+		Advance();
 	}
-	if (ch == '-')
+	if (IsAtEnd())
 	{
-		++m_curr_pos;
-		return Token(TokenType::MINUS, ch);
+		Error(m_line, "Unterminated string.");
+		return;
 	}
-	if (ch == '*')
+	// Closing "
+	Advance();
+	auto val =
+		m_text.substr(m_start_pos + 1, GetLexemeSize() - 2);
+	AddToken(TokenType::STRING, std::move(val));
+
+}
+
+void Lexer::ConsumeNumericLiteral()
+{
+	while (std::isdigit(Peek()))
+		Advance();
+	if (Peek() == '.' && std::isdigit(PeekNext()))
 	{
-		++m_curr_pos;
-		return Token(TokenType::MUL, ch);
+		//Skip the "."
+		Advance();
+		while (std::isdigit(Peek()))
+			Advance();
 	}
-	if (ch == '/')
-	{
-		++m_curr_pos;
-		return Token(TokenType::DIV, ch);
-	}
-	if (ch == '(')
-	{
-		++m_curr_pos;
-		return Token(TokenType::LPARENT, ch);
-	}
-	if (ch == ')')
-	{
-		++m_curr_pos;
-		return Token(TokenType::RPARENT, ch);
-	}
-	throw std::exception("Unknown token");
+	AddToken(TokenType::NUMBER,
+		strtod(m_text.substr(m_start_pos, GetLexemeSize()).c_str(), nullptr));
+}
+
+void Lexer::ConsumeIdentifier()
+{
+	while (IsAlphanumeric(Peek()))
+		Advance();
+
+	auto lexeme = m_text.substr(m_start_pos, GetLexemeSize());
+	const auto it = keywords.find(lexeme);
+	if (it != std::end(keywords))
+		AddToken(it->second, std::move(lexeme));
+	else
+		AddToken(TokenType::IDENTIFIER, std::move(lexeme));
+}
+
+void Lexer::AddToken(TokenType type)
+{
+	AddToken(type, {});
+}
+
+void Lexer::AddToken(TokenType type, LiteralT literal)
+{
+	auto lexeme = m_text.substr(m_start_pos, GetLexemeSize());
+	m_tokens.emplace_back(type, std::move(lexeme), std::move(literal), m_line);
+
 }

@@ -1,13 +1,14 @@
 #pragma once
 
-#include "Token.h"
-#include "Node.h"
 
-#include <memory>
+import ast;
+import core;
+
+import <memory>;
 
 class Lexer;
 
-class Parser
+/*class Parser
 {
 	Token m_curr_token;
 	std::shared_ptr<Lexer> m_lexer;
@@ -21,4 +22,4 @@ public:
 
 private:
 	void Error(const char* error);
-};
+};*/
