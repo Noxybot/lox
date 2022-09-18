@@ -5,7 +5,7 @@ import <variant>;
 import <string>;
 import <cassert>;
 
-export using LiteralT = std::variant<std::string, double>;
+export using LiteralT = std::variant<std::monostate, std::string, double, bool>;
 
 export enum class TokenType
 {
@@ -32,17 +32,17 @@ export enum class TokenType
 
 std::string ToString(const TokenType type);
 
-struct AnyGet {
+export struct AnyGet {
 	std::string operator()(bool value) { return value ? "true" : "false"; }
 	std::string operator()(char value) { return std::string(1, value); }
 	std::string operator()(int value) { return std::to_string(value); }
 	std::string operator()(double value) { return std::to_string(value); }
 	std::string operator()(const std::string& value) { return value; }
+	std::string operator()(const std::monostate& value) { return "NIL"; }
 };
 
-export class Token
+export struct Token
 {
-public:
 	TokenType m_type = TokenType::UNDEF;
 	std::string m_lexeme;
 	LiteralT m_literal;

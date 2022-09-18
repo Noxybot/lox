@@ -1,6 +1,4 @@
 
-add_library(parser "include/Parser.h" "Parser.cpp")
+add_library(parser "parser.ixx")
 
-target_link_libraries(parser PUBLIC core ast PRIVATE lexer)
-
-target_include_directories(parser PUBLIC ${CMAKE_CURRENT_LIST_DIR}/include)
+target_link_libraries(parser PUBLIC ast PRIVATE core logger)

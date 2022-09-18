@@ -13,7 +13,7 @@ add_subdirectory(logger)
 add_subdirectory(tests)
 add_subdirectory(tools)
 
-add_executable(main main.cpp )
+add_executable(main main.cpp)
 
-target_link_libraries(main PRIVATE lexer interpreter)
+target_link_libraries(main PRIVATE ast_printer logger lexer parser)
 

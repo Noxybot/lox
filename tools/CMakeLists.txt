@@ -1,1 +1,2 @@
 add_subdirectory(ast_builder)
+add_subdirectory(ast_printer)

@@ -24,8 +24,11 @@ struct Visitor
 struct Expr
 {
 	virtual ~Expr() = default;
-	virtual std::any Accept(Visitor& visitor) = 0;
+	virtual std::any Accept(Visitor& visitor) const = 0;
 };
+
+using ExprPtr = std::unique_ptr<Expr>;
+
 struct Binary    : Expr
 {
 	std::unique_ptr<Expr> left;
@@ -36,7 +39,7 @@ struct Binary    : Expr
 		, op(std::move(op_))
 		, right(std::move(right_))
 		{}
-	std::any Accept(Visitor& visitor) override
+	std::any Accept(Visitor& visitor) const override
 	{
 		return visitor.Visit(*this);
 	}
@@ -47,7 +50,7 @@ struct Grouping  : Expr
 	explicit Grouping (std::unique_ptr<Expr> expression_)
 		: expression(std::move(expression_))
 		{}
-	std::any Accept(Visitor& visitor) override
+	std::any Accept(Visitor& visitor) const override
 	{
 		return visitor.Visit(*this);
 	}
@@ -58,7 +61,7 @@ struct Literal   : Expr
 	explicit Literal  (LiteralT value_)
 		: value(std::move(value_))
 		{}
-	std::any Accept(Visitor& visitor) override
+	std::any Accept(Visitor& visitor) const override
 	{
 		return visitor.Visit(*this);
 	}
@@ -71,7 +74,7 @@ struct Unary     : Expr
 		: op(std::move(op_))
 		, right(std::move(right_))
 		{}
-	std::any Accept(Visitor& visitor) override
+	std::any Accept(Visitor& visitor) const override
 	{
 		return visitor.Visit(*this);
 	}

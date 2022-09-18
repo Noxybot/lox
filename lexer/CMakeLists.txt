@@ -1,4 +1,3 @@
-add_library(lexer "lexer.cpp" "lexer.ixx")
+add_library(lexer "lexer.ixx")
 
-target_link_libraries(lexer PUBLIC core PRIVATE logger)
-
+target_link_libraries(lexer PUBLIC PRIVATE logger core)

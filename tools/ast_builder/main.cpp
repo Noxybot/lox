@@ -74,8 +74,9 @@ void DefineAST(std::string_view output_path, std::string_view base_name,
 	file << "struct " << base_name
 		<< "\n{\n"
 		<< "\tvirtual ~" << base_name << "() = default;\n"
-		<< "\tvirtual std::any Accept(Visitor& visitor) = 0;\n"
-		<< "};\n";
+		<< "\tvirtual std::any Accept(Visitor& visitor) const = 0;\n"
+		<< "};\n\n"
+		<< "using ExprPtr = std::unique_ptr<Expr>;\n\n";
 	file << ss.str();
 	file << "}//namespace ast\n";
 }
@@ -148,7 +149,7 @@ void DefineType(std::ostream& file, std::string_view base_name,
 	file << constructor_params.str();
 	file << constructor_init_list.str()
 		<< "\t\t{}\n";
-	file << "\tstd::any Accept(Visitor& visitor) override\n"
+	file << "\tstd::any Accept(Visitor& visitor) const override\n"
 		<< "\t{\n"
 		<< "\t\treturn visitor.Visit(*this);\n"
 		<< "\t}\n";
