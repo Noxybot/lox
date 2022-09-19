@@ -5,6 +5,7 @@
 
 import lexer;
 import parser;
+import interpreter;
 import log;
 import ast_printer;
 
@@ -16,8 +17,10 @@ void Run(std::string source) noexcept(false)
 	auto expr = p.Parse();
 	if (has_error)
 		return;
-	ASTPrinter printer;
-	std::cout << printer.Print(*expr) << std::endl;
+	static Interpreter i;
+	i.Interpret(*expr);
+	//ASTPrinter printer;
+	//std::cout << printer.Print(*expr) << std::endl;
 
 }
 
@@ -59,6 +62,10 @@ int main(int argc, char** argv) try
 	{
 		RunPrompt();
 	}
+	if (has_error)
+		return 65;
+	if (has_runtime_error)
+		return 70;
 	return 0;
 }
 catch (const std::exception& error)

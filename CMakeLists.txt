@@ -15,5 +15,5 @@ add_subdirectory(tools)
 
 add_executable(main main.cpp)
 
-target_link_libraries(main PRIVATE ast_printer logger lexer parser)
+target_link_libraries(main PRIVATE ast_printer logger lexer parser interpreter)
 
