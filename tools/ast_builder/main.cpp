@@ -45,6 +45,7 @@ int main(int argc, char** argv)
 		"Assign   ^Token-name,Expr-value",
 		"Binary   ^Expr-left,Token-op,Expr-right",
 		"Grouping ^Expr-expression",
+		"Logical  ^Expr-left,Token-op,Expr-right",
 		"Literal  ^LiteralT-value",
 		"Unary    ^Token-op,Expr-right",
 		"Variable ^Token-name"
@@ -54,8 +55,10 @@ int main(int argc, char** argv)
 	DefineAST(file, "Stmt", { {
 		"Block      ^std::vector<StmtPtr>-statements",
 		"Expression ^Expr-expression",
+		"If         ^Expr-condition,StmtPtr-then_branch,StmtPtr-else_branch",
 		"Print      ^Expr-expression",
-		"Var        ^Token-name,Expr-initializer"
+		"Var        ^Token-name,Expr-initializer",
+		"While      ^Expr-condition,StmtPtr-body"
 		} }, true);
 	file << "\n} //namespace stmt\n";
 	WriteEpilog(file);

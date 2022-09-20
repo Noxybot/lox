@@ -21,8 +21,10 @@ public:
 	void Interpret(const std::vector<ast::stmt::StmtPtr>& statements);
 private:
 	std::any Visit(const ast::stmt::Expression& val) override;
+	std::any Visit(const ast::stmt::If& val) override;
 	std::any Visit(const ast::stmt::Print& val) override;
 	std::any Visit(const ast::stmt::Var& val) override;
+	std::any Visit(const ast::stmt::While& val) override;
 	std::any Visit(const ast::stmt::Block& val) override;
 
 	std::any Visit(const ast::expr::Assign& val) override;
@@ -30,6 +32,7 @@ private:
 	std::any Visit(const ast::expr::Binary& val) override;
 	std::any Visit(const ast::expr::Grouping& val) override;
 	std::any Visit(const ast::expr::Literal& val) override;
+	std::any Visit(const ast::expr::Logical& val) override;
 	std::any Visit(const ast::expr::Unary& val) override;
 
 	void Execute(const ast::stmt::Stmt& stmt);
@@ -63,6 +66,15 @@ std::any Interpreter::Visit(const ast::stmt::Expression& val)
 	return {};
 }
 
+std::any Interpreter::Visit(const ast::stmt::If& val)
+{
+	if (IsTruthy(Evaluate(*val.condition)))
+		Execute(*val.then_branch);
+	else if (val.then_branch)
+		Execute(*val.then_branch);
+	return {};
+}
+
 std::any Interpreter::Visit(const ast::stmt::Print& val)
 {
 	auto res = Evaluate(*val.expression);
@@ -76,6 +88,13 @@ std::any Interpreter::Visit(const ast::stmt::Var& val)
 	if (val.initializer)
 		value = Evaluate(*val.initializer);
 	m_environment->Define(val.name.m_lexeme, value);
+	return {};
+}
+
+std::any Interpreter::Visit(const ast::stmt::While& val)
+{
+	while (IsTruthy(Evaluate(*val.condition)))
+		Execute(*val.body);
 	return {};
 }
 
@@ -165,6 +184,19 @@ std::any Interpreter::Visit(const ast::expr::Literal& val)
 	throw std::runtime_error("Unknown literal type.");
 }
 
+std::any Interpreter::Visit(const ast::expr::Logical& val)
+{
+	auto left = Evaluate(*val.left);
+	if (val.op.m_type == TokenType::OR)
+	{
+		if (IsTruthy(left))
+			return left;
+	}
+	else if (!IsTruthy(left))
+		return left;
+	return Evaluate(*val.right);
+}
+
 std::any Interpreter::Visit(const ast::expr::Unary& val)
 {
 	auto right = Evaluate(*val.right);
@@ -204,7 +236,7 @@ bool Interpreter::IsTruthy(const std::any& val)
 		return false;
 	if (CheckAnyType<bool>(val))
 		return std::any_cast<bool>(val);
-	return false;
+	return true;
 }
 
 bool Interpreter::IsEqual(const std::any& left, const std::any& right)

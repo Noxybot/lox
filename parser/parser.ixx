@@ -26,13 +26,18 @@ public:
 private:
 	ast::stmt::StmtPtr Declaration();
 	ast::stmt::StmtPtr Statement();
+	ast::stmt::StmtPtr ForStatement();
+	ast::stmt::StmtPtr IfStatement();
 	ast::stmt::StmtPtr VarDeclaration();
+	ast::stmt::StmtPtr WhileStatement();
 	ast::stmt::StmtPtr ExprStmt();
 	std::vector<ast::stmt::StmtPtr> Block();
 	ast::stmt::StmtPtr PrintStmt();
 
 	ast::expr::ExprPtr Expression();
 	ast::expr::ExprPtr Assigment();
+	ast::expr::ExprPtr Or();
+	ast::expr::ExprPtr And();
 	ast::expr::ExprPtr Equality();
 	ast::expr::ExprPtr Comparison();
 	ast::expr::ExprPtr Term();
@@ -94,11 +99,72 @@ catch (const ParseError& err)
 
 ast::stmt::StmtPtr Parser::Statement()
 {
+	if (Match(TokenType::FOR))
+		return ForStatement();
+	if (Match(TokenType::IF))
+		return IfStatement();
 	if (Match(TokenType::PRINT))
 		return PrintStmt();
+	if (Match(TokenType::WHILE))
+		return WhileStatement();
 	if (Match(TokenType::LEFT_BRACE))
 		return std::make_unique<ast::stmt::Block>(Block());
 	return ExprStmt();
+}
+
+ast::stmt::StmtPtr Parser::ForStatement()
+{
+	ConsumeType(TokenType::LEFT_PAREN, "Expect '(' after 'for'.");
+	ast::stmt::StmtPtr initializer;
+	if (Match(TokenType::SEMICOLON))
+	{
+	}
+	else if (Match(TokenType::VAR))
+		initializer = VarDeclaration();
+	else
+		initializer = ExprStmt();
+
+	ast::expr::ExprPtr condition;
+	if (!CheckCurrentType(TokenType::SEMICOLON))
+		condition = Expression();
+	ConsumeType(TokenType::SEMICOLON, "Expect ';' after loop condition.");
+
+	ast::expr::ExprPtr increment;
+	if (!CheckCurrentType(TokenType::LEFT_PAREN))
+		increment = Expression();
+	ConsumeType(TokenType::RIGHT_PAREN, "Expect ')' after for clauses.");
+	auto body = Statement();
+	if (increment)
+	{
+		std::vector<ast::stmt::StmtPtr> block;
+		block.push_back(std::move(body));
+		block.push_back(std::make_unique<ast::stmt::Expression>(std::move(increment)));
+		body = std::make_unique<ast::stmt::Block>(std::move(block));
+	}
+	if (!condition)
+		condition = std::make_unique<ast::expr::Literal>(true);
+	body = std::make_unique<ast::stmt::While>(std::move(condition), std::move(body));
+	if (initializer)
+	{
+		std::vector<ast::stmt::StmtPtr> block;
+		block.push_back(std::move(initializer));
+		block.push_back(std::move(body));
+		body = std::make_unique<ast::stmt::Block>(std::move(block));
+	}
+	return body;
+}
+
+ast::stmt::StmtPtr Parser::IfStatement()
+{
+	ConsumeType(TokenType::LEFT_PAREN, "Expect '(' after 'if'.");
+	auto condition = Expression();
+	ConsumeType(TokenType::RIGHT_PAREN, "Expect ')' after if condition.");
+	auto then_branch = Statement();
+	ast::stmt::StmtPtr else_branch;
+	if (Match(TokenType::ELSE))
+		else_branch = Statement();
+	return std::make_unique<ast::stmt::If>(std::move(condition),
+		std::move(then_branch), std::move(else_branch));
 }
 
 ast::stmt::StmtPtr Parser::VarDeclaration()
@@ -109,6 +175,15 @@ ast::stmt::StmtPtr Parser::VarDeclaration()
 		initializer = Expression();
 	ConsumeType(TokenType::SEMICOLON, "Expect ';' after variable declaration.");
 	return std::make_unique<ast::stmt::Var>(std::move(name), std::move(initializer));
+}
+
+ast::stmt::StmtPtr Parser::WhileStatement()
+{
+	ConsumeType(TokenType::LEFT_PAREN, "Expect '(' after 'while'.");
+	auto condition = Expression();
+	ConsumeType(TokenType::RIGHT_PAREN, "Expect ')' after condition.");
+	auto body = Statement();
+	return std::make_unique<ast::stmt::While>(std::move(condition), std::move(body));
 }
 
 ast::stmt::StmtPtr Parser::ExprStmt()
@@ -141,7 +216,7 @@ ast::expr::ExprPtr Parser::Expression()
 
 ast::expr::ExprPtr Parser::Assigment()
 {
-	auto expr = Equality();
+	auto expr = Or();
 	if (Match(TokenType::EQUAL))
 	{
 		auto equals = Previous();
@@ -153,6 +228,32 @@ ast::expr::ExprPtr Parser::Assigment()
 			return std::make_unique<ast::expr::Assign>(std::move(name), std::move(value));
 		}
 		Error(equals, "Invalid assigment target.");
+	}
+	return expr;
+}
+
+ast::expr::ExprPtr Parser::Or()
+{
+	auto expr = And();
+	while (Match(TokenType::OR))
+	{
+		auto op = Previous();
+		auto right = And();
+		expr = std::make_unique<ast::expr::Logical>(std::move(expr), std::move(op), std::move(right));
+
+	}
+	return expr;
+}
+
+ast::expr::ExprPtr Parser::And()
+{
+	auto expr = Equality();
+	while (Match(TokenType::AND))
+	{
+		auto op = Previous();
+		auto right = Equality();
+		expr = std::make_unique<ast::expr::Logical>(std::move(expr), std::move(op), std::move(right));
+
 	}
 	return expr;
 }

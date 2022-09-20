@@ -16,6 +16,7 @@ namespace expr
 struct Assign   ;
 struct Binary   ;
 struct Grouping ;
+struct Logical  ;
 struct Literal  ;
 struct Unary    ;
 struct Variable ;
@@ -26,6 +27,7 @@ struct VisitorExpr
 	virtual std::any Visit(const Assign   & val) = 0;
 	virtual std::any Visit(const Binary   & val) = 0;
 	virtual std::any Visit(const Grouping & val) = 0;
+	virtual std::any Visit(const Logical  & val) = 0;
 	virtual std::any Visit(const Literal  & val) = 0;
 	virtual std::any Visit(const Unary    & val) = 0;
 	virtual std::any Visit(const Variable & val) = 0;
@@ -77,6 +79,21 @@ struct Grouping  : Expr
 		return visitor.Visit(*this);
 	}
 };
+struct Logical   : Expr
+{
+	std::unique_ptr<Expr> left;
+	Token op;
+	std::unique_ptr<Expr> right;
+	explicit Logical  (std::unique_ptr<Expr> left_, Token op_, std::unique_ptr<Expr> right_)
+		: left(std::move(left_))
+		, op(std::move(op_))
+		, right(std::move(right_))
+		{}
+	std::any Accept(VisitorExpr& visitor) const override
+	{
+		return visitor.Visit(*this);
+	}
+};
 struct Literal   : Expr
 {
 	LiteralT value;
@@ -120,16 +137,20 @@ namespace stmt
 
 struct Block      ;
 struct Expression ;
+struct If         ;
 struct Print      ;
 struct Var        ;
+struct While      ;
 
 struct VisitorStmt
 {
 	virtual ~VisitorStmt() = default;
 	virtual std::any Visit(const Block      & val) = 0;
 	virtual std::any Visit(const Expression & val) = 0;
+	virtual std::any Visit(const If         & val) = 0;
 	virtual std::any Visit(const Print      & val) = 0;
 	virtual std::any Visit(const Var        & val) = 0;
+	virtual std::any Visit(const While      & val) = 0;
 };
 struct Stmt
 {
@@ -161,6 +182,21 @@ struct Expression  : Stmt
 		return visitor.Visit(*this);
 	}
 };
+struct If          : Stmt
+{
+	std::unique_ptr<expr::Expr> condition;
+	StmtPtr then_branch;
+	StmtPtr else_branch;
+	explicit If         (std::unique_ptr<expr::Expr> condition_, StmtPtr then_branch_, StmtPtr else_branch_)
+		: condition(std::move(condition_))
+		, then_branch(std::move(then_branch_))
+		, else_branch(std::move(else_branch_))
+		{}
+	std::any Accept(VisitorStmt& visitor) const override
+	{
+		return visitor.Visit(*this);
+	}
+};
 struct Print       : Stmt
 {
 	std::unique_ptr<expr::Expr> expression;
@@ -179,6 +215,19 @@ struct Var         : Stmt
 	explicit Var        (Token name_, std::unique_ptr<expr::Expr> initializer_)
 		: name(std::move(name_))
 		, initializer(std::move(initializer_))
+		{}
+	std::any Accept(VisitorStmt& visitor) const override
+	{
+		return visitor.Visit(*this);
+	}
+};
+struct While       : Stmt
+{
+	std::unique_ptr<expr::Expr> condition;
+	StmtPtr body;
+	explicit While      (std::unique_ptr<expr::Expr> condition_, StmtPtr body_)
+		: condition(std::move(condition_))
+		, body(std::move(body_))
 		{}
 	std::any Accept(VisitorStmt& visitor) const override
 	{
