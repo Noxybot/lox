@@ -3,6 +3,7 @@ export module ast;
 
 import <any>;
 import <memory>;
+import <vector>;
 
 import core;
 
@@ -12,6 +13,7 @@ export namespace ast
 namespace expr 
 {
 
+struct Assign   ;
 struct Binary   ;
 struct Grouping ;
 struct Literal  ;
@@ -21,6 +23,7 @@ struct Variable ;
 struct VisitorExpr
 {
 	virtual ~VisitorExpr() = default;
+	virtual std::any Visit(const Assign   & val) = 0;
 	virtual std::any Visit(const Binary   & val) = 0;
 	virtual std::any Visit(const Grouping & val) = 0;
 	virtual std::any Visit(const Literal  & val) = 0;
@@ -35,6 +38,19 @@ struct Expr
 
 using ExprPtr = std::unique_ptr<Expr>; 
 
+struct Assign    : Expr
+{
+	Token name;
+	std::unique_ptr<Expr> value;
+	explicit Assign   (Token name_, std::unique_ptr<Expr> value_)
+		: name(std::move(name_))
+		, value(std::move(value_))
+		{}
+	std::any Accept(VisitorExpr& visitor) const override
+	{
+		return visitor.Visit(*this);
+	}
+};
 struct Binary    : Expr
 {
 	std::unique_ptr<Expr> left;
@@ -102,6 +118,7 @@ struct Variable  : Expr
 namespace stmt 
 {
 
+struct Block      ;
 struct Expression ;
 struct Print      ;
 struct Var        ;
@@ -109,6 +126,7 @@ struct Var        ;
 struct VisitorStmt
 {
 	virtual ~VisitorStmt() = default;
+	virtual std::any Visit(const Block      & val) = 0;
 	virtual std::any Visit(const Expression & val) = 0;
 	virtual std::any Visit(const Print      & val) = 0;
 	virtual std::any Visit(const Var        & val) = 0;
@@ -121,6 +139,17 @@ struct Stmt
 
 using StmtPtr = std::unique_ptr<Stmt>; 
 
+struct Block       : Stmt
+{
+	std::vector<StmtPtr> statements;
+	explicit Block      (std::vector<StmtPtr> statements_)
+		: statements(std::move(statements_))
+		{}
+	std::any Accept(VisitorStmt& visitor) const override
+	{
+		return visitor.Visit(*this);
+	}
+};
 struct Expression  : Stmt
 {
 	std::unique_ptr<expr::Expr> expression;

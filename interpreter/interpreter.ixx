@@ -9,20 +9,23 @@ import <stdexcept>;
 import <string>;
 import <sstream>;
 import <typeinfo>;
+import <memory>;
 import <variant>;
 import <vector>;
 import <iostream>;
 
 export class Interpreter : public ast::expr::VisitorExpr, ast::stmt::VisitorStmt
 {
-	Environment m_environment;
+	std::shared_ptr<Environment> m_environment = std::make_shared<Environment>();
 public:
 	void Interpret(const std::vector<ast::stmt::StmtPtr>& statements);
 private:
 	std::any Visit(const ast::stmt::Expression& val) override;
 	std::any Visit(const ast::stmt::Print& val) override;
 	std::any Visit(const ast::stmt::Var& val) override;
+	std::any Visit(const ast::stmt::Block& val) override;
 
+	std::any Visit(const ast::expr::Assign& val) override;
 	std::any Visit(const ast::expr::Variable& val) override;
 	std::any Visit(const ast::expr::Binary& val) override;
 	std::any Visit(const ast::expr::Grouping& val) override;
@@ -30,6 +33,8 @@ private:
 	std::any Visit(const ast::expr::Unary& val) override;
 
 	void Execute(const ast::stmt::Stmt& stmt);
+	void ExecuteBlock(const std::vector<ast::stmt::StmtPtr>& statements,
+		std::shared_ptr<Environment> environment);
 
 	std::any Evaluate(const ast::expr::Expr& expr);
 	static bool IsTruthy(const std::any& val);
@@ -70,13 +75,26 @@ std::any Interpreter::Visit(const ast::stmt::Var& val)
 	std::any value;
 	if (val.initializer)
 		value = Evaluate(*val.initializer);
-	m_environment.Define(val.name.m_lexeme, value);
+	m_environment->Define(val.name.m_lexeme, value);
 	return {};
+}
+
+std::any Interpreter::Visit(const ast::stmt::Block& val)
+{
+	ExecuteBlock(val.statements, std::make_shared<Environment>(m_environment));
+	return {};
+}
+
+std::any Interpreter::Visit(const ast::expr::Assign& val)
+{
+	auto value = Evaluate(*val.value);
+	m_environment->Assign(val.name, value);
+	return value;
 }
 
 std::any Interpreter::Visit(const ast::expr::Variable& val)
 {
-	return m_environment.Get(val.name);
+	return m_environment->Get(val.name);
 }
 
 std::any Interpreter::Visit(const ast::expr::Binary& val)
@@ -164,6 +182,15 @@ std::any Interpreter::Visit(const ast::expr::Unary& val)
 void Interpreter::Execute(const ast::stmt::Stmt& stmt)
 {
 	stmt.Accept(*this);
+}
+
+void Interpreter::ExecuteBlock(const std::vector<ast::stmt::StmtPtr>& statements, std::shared_ptr<Environment> environment)
+{
+	auto prev = m_environment;
+	m_environment = std::move(environment);
+	for (const auto& statement : statements)
+		Execute(*statement);
+	m_environment = std::move(prev);
 }
 
 std::any Interpreter::Evaluate(const ast::expr::Expr& expr)

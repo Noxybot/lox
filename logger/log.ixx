@@ -18,7 +18,7 @@ export void Error(const Token& token, std::string_view message);
 export struct RuntimeError : public std::runtime_error
 {
 	Token m_token;
-	RuntimeError(Token token, const char* msg)
+	RuntimeError(Token token, const std::string& msg)
 		: std::runtime_error(msg)
 		, m_token(std::move(token))
 	{}

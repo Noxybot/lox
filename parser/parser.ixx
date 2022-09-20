@@ -28,9 +28,11 @@ private:
 	ast::stmt::StmtPtr Statement();
 	ast::stmt::StmtPtr VarDeclaration();
 	ast::stmt::StmtPtr ExprStmt();
+	std::vector<ast::stmt::StmtPtr> Block();
 	ast::stmt::StmtPtr PrintStmt();
 
 	ast::expr::ExprPtr Expression();
+	ast::expr::ExprPtr Assigment();
 	ast::expr::ExprPtr Equality();
 	ast::expr::ExprPtr Comparison();
 	ast::expr::ExprPtr Term();
@@ -69,7 +71,6 @@ Parser::Parser(std::vector<Token> tokens)
 std::vector<ast::stmt::StmtPtr> Parser::Parse() try
 {
 	std::vector<ast::stmt::StmtPtr> statements;
-
 	while (!IsAtEnd())
 		statements.push_back(Declaration());
 	return statements;
@@ -95,6 +96,8 @@ ast::stmt::StmtPtr Parser::Statement()
 {
 	if (Match(TokenType::PRINT))
 		return PrintStmt();
+	if (Match(TokenType::LEFT_BRACE))
+		return std::make_unique<ast::stmt::Block>(Block());
 	return ExprStmt();
 }
 
@@ -115,6 +118,15 @@ ast::stmt::StmtPtr Parser::ExprStmt()
 	return std::make_unique<ast::stmt::Expression>(std::move(expr));
 }
 
+std::vector<ast::stmt::StmtPtr> Parser::Block()
+{
+	std::vector<ast::stmt::StmtPtr> res;
+	while (!CheckCurrentType(TokenType::RIGHT_BRACE) && !IsAtEnd())
+		res.push_back(Declaration());
+	ConsumeType(TokenType::RIGHT_BRACE, "Expect '}' after block.");
+	return res;
+}
+
 ast::stmt::StmtPtr Parser::PrintStmt()
 {
 	auto expr = Expression();
@@ -124,7 +136,25 @@ ast::stmt::StmtPtr Parser::PrintStmt()
 
 ast::expr::ExprPtr Parser::Expression()
 {
-	return Equality();
+	return Assigment();
+}
+
+ast::expr::ExprPtr Parser::Assigment()
+{
+	auto expr = Equality();
+	if (Match(TokenType::EQUAL))
+	{
+		auto equals = Previous();
+		auto value = Assigment();
+		const auto var = dynamic_cast<ast::expr::Variable*>(expr.get());
+		if (var)
+		{
+			auto name = var->name;
+			return std::make_unique<ast::expr::Assign>(std::move(name), std::move(value));
+		}
+		Error(equals, "Invalid assigment target.");
+	}
+	return expr;
 }
 
 ast::expr::ExprPtr Parser::Equality()
