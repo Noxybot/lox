@@ -22,15 +22,21 @@ export class Parser
 public:
 	explicit Parser(std::vector<Token> tokens);
 
-	ast::ExprPtr Parse();
+	std::vector<ast::stmt::StmtPtr> Parse();
 private:
-	ast::ExprPtr Expression();
-	ast::ExprPtr Equality();
-	ast::ExprPtr Comparison();
-	ast::ExprPtr Term();
-	ast::ExprPtr Factor();
-	ast::ExprPtr Unary();
-	ast::ExprPtr Primary();
+	ast::stmt::StmtPtr Declaration();
+	ast::stmt::StmtPtr Statement();
+	ast::stmt::StmtPtr VarDeclaration();
+	ast::stmt::StmtPtr ExprStmt();
+	ast::stmt::StmtPtr PrintStmt();
+
+	ast::expr::ExprPtr Expression();
+	ast::expr::ExprPtr Equality();
+	ast::expr::ExprPtr Comparison();
+	ast::expr::ExprPtr Term();
+	ast::expr::ExprPtr Factor();
+	ast::expr::ExprPtr Unary();
+	ast::expr::ExprPtr Primary();
 
 	const Token& Advance();
 	bool IsAtEnd() const;
@@ -60,34 +66,81 @@ Parser::Parser(std::vector<Token> tokens)
 	: m_tokens(std::move(tokens))
 {}
 
-ast::ExprPtr Parser::Parse() try
+std::vector<ast::stmt::StmtPtr> Parser::Parse() try
 {
-	return Expression();
+	std::vector<ast::stmt::StmtPtr> statements;
+
+	while (!IsAtEnd())
+		statements.push_back(Declaration());
+	return statements;
 }
 catch (const ParseError& error)
 {
+	return {};
+}
+
+ast::stmt::StmtPtr Parser::Declaration() try
+{
+	if (Match(TokenType::VAR))
+		return VarDeclaration();
+	return Statement();
+}
+catch (const ParseError& err)
+{
+	Synchronize();
 	return nullptr;
 }
 
-ast::ExprPtr Parser::Expression()
+ast::stmt::StmtPtr Parser::Statement()
+{
+	if (Match(TokenType::PRINT))
+		return PrintStmt();
+	return ExprStmt();
+}
+
+ast::stmt::StmtPtr Parser::VarDeclaration()
+{
+	auto name = ConsumeType(TokenType::IDENTIFIER, "Expect variable name.");
+	ast::expr::ExprPtr initializer;
+	if (Match(TokenType::EQUAL))
+		initializer = Expression();
+	ConsumeType(TokenType::SEMICOLON, "Expect ';' after variable declaration.");
+	return std::make_unique<ast::stmt::Var>(std::move(name), std::move(initializer));
+}
+
+ast::stmt::StmtPtr Parser::ExprStmt()
+{
+	auto expr = Expression();
+	ConsumeType(TokenType::SEMICOLON, "Expect ';' after expression.");
+	return std::make_unique<ast::stmt::Expression>(std::move(expr));
+}
+
+ast::stmt::StmtPtr Parser::PrintStmt()
+{
+	auto expr = Expression();
+	ConsumeType(TokenType::SEMICOLON, "Expect ';' after value.");
+	return std::make_unique<ast::stmt::Print>(std::move(expr));
+}
+
+ast::expr::ExprPtr Parser::Expression()
 {
 	return Equality();
 }
 
-ast::ExprPtr Parser::Equality()
+ast::expr::ExprPtr Parser::Equality()
 {
 	auto expr = Comparison();
 	while (Match(TokenType::BANG_EQUAL, TokenType::EQUAL_EQUAL))
 	{
 		auto op = Previous();
 		auto right = Comparison();
-		expr = std::make_unique<ast::Binary>
+		expr = std::make_unique<ast::expr::Binary>
 			(std::move(expr), std::move(op), std::move(right));
 	}
 	return expr;
 }
 
-ast::ExprPtr Parser::Comparison()
+ast::expr::ExprPtr Parser::Comparison()
 {
 	auto expr = Term();
 	while (Match(TokenType::GREATER, TokenType::GREATER_EQUAL,
@@ -95,65 +148,67 @@ ast::ExprPtr Parser::Comparison()
 	{
 		auto op = Previous();
 		auto right = Term();
-		expr = std::make_unique<ast::Binary>
+		expr = std::make_unique<ast::expr::Binary>
 			(std::move(expr), std::move(op), std::move(right));
 	}
 	return expr;
 }
 
-ast::ExprPtr Parser::Term()
+ast::expr::ExprPtr Parser::Term()
 {
 	auto expr = Factor();
 	while (Match(TokenType::MINUS, TokenType::PLUS))
 	{
 		auto op = Previous();
 		auto right = Factor();
-		expr = std::make_unique<ast::Binary>
+		expr = std::make_unique<ast::expr::Binary>
 			(std::move(expr), std::move(op), std::move(right));
 	}
 	return expr;
 }
 
-ast::ExprPtr Parser::Factor()
+ast::expr::ExprPtr Parser::Factor()
 {
 	auto expr = Unary();
 	while (Match(TokenType::SLASH, TokenType::STAR))
 	{
 		auto op = Previous();
 		auto right = Unary();
-		expr = std::make_unique<ast::Binary>
+		expr = std::make_unique<ast::expr::Binary>
 			(std::move(expr), std::move(op), std::move(right));
 	}
 	return expr;
 }
 
-ast::ExprPtr Parser::Unary()
+ast::expr::ExprPtr Parser::Unary()
 {
 	if (Match(TokenType::BANG, TokenType::MINUS))
 	{
 		auto op = Previous();
 		auto right = Unary();
-		return std::make_unique<ast::Unary>
+		return std::make_unique<ast::expr::Unary>
 			(std::move(op), std::move(right));
 	}
 	return Primary();
 }
 
-ast::ExprPtr Parser::Primary()
+ast::expr::ExprPtr Parser::Primary()
 {
 	if (Match(TokenType::FALSE))
-		return std::make_unique<ast::Literal>(false);
+		return std::make_unique<ast::expr::Literal>(false);
 	if (Match(TokenType::TRUE))
-		return std::make_unique<ast::Literal>(true);
+		return std::make_unique<ast::expr::Literal>(true);
 	if (Match(TokenType::NIL))
-		return std::make_unique<ast::Literal>(std::monostate{});
+		return std::make_unique<ast::expr::Literal>(std::monostate{});
 	if (Match(TokenType::NUMBER, TokenType::STRING))
-		return std::make_unique<ast::Literal>(Previous().m_literal);
+		return std::make_unique<ast::expr::Literal>(Previous().m_literal);
+	if (Match(TokenType::IDENTIFIER))
+		return std::make_unique<ast::expr::Variable>(Previous());
 	if (Match(TokenType::LEFT_PAREN))
 	{
 		auto expr = Expression();
 		ConsumeType(TokenType::RIGHT_PAREN, "Expect ')' after expression.");
-		return std::make_unique<ast::Grouping>(std::move(expr));
+		return std::make_unique<ast::expr::Grouping>(std::move(expr));
 	}
 	throw Error(Peek(), "Expect expression.");
 }

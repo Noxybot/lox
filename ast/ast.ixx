@@ -8,26 +8,32 @@ import core;
 
 export namespace ast
 {
+
+namespace expr 
+{
+
 struct Binary   ;
 struct Grouping ;
 struct Literal  ;
 struct Unary    ;
+struct Variable ;
 
-struct Visitor
+struct VisitorExpr
 {
-	virtual ~Visitor() = default;
+	virtual ~VisitorExpr() = default;
 	virtual std::any Visit(const Binary   & val) = 0;
 	virtual std::any Visit(const Grouping & val) = 0;
 	virtual std::any Visit(const Literal  & val) = 0;
 	virtual std::any Visit(const Unary    & val) = 0;
+	virtual std::any Visit(const Variable & val) = 0;
 };
 struct Expr
 {
 	virtual ~Expr() = default;
-	virtual std::any Accept(Visitor& visitor) const = 0;
+	virtual std::any Accept(VisitorExpr& visitor) const = 0;
 };
 
-using ExprPtr = std::unique_ptr<Expr>;
+using ExprPtr = std::unique_ptr<Expr>; 
 
 struct Binary    : Expr
 {
@@ -39,7 +45,7 @@ struct Binary    : Expr
 		, op(std::move(op_))
 		, right(std::move(right_))
 		{}
-	std::any Accept(Visitor& visitor) const override
+	std::any Accept(VisitorExpr& visitor) const override
 	{
 		return visitor.Visit(*this);
 	}
@@ -50,7 +56,7 @@ struct Grouping  : Expr
 	explicit Grouping (std::unique_ptr<Expr> expression_)
 		: expression(std::move(expression_))
 		{}
-	std::any Accept(Visitor& visitor) const override
+	std::any Accept(VisitorExpr& visitor) const override
 	{
 		return visitor.Visit(*this);
 	}
@@ -61,7 +67,7 @@ struct Literal   : Expr
 	explicit Literal  (LiteralT value_)
 		: value(std::move(value_))
 		{}
-	std::any Accept(Visitor& visitor) const override
+	std::any Accept(VisitorExpr& visitor) const override
 	{
 		return visitor.Visit(*this);
 	}
@@ -74,9 +80,82 @@ struct Unary     : Expr
 		: op(std::move(op_))
 		, right(std::move(right_))
 		{}
-	std::any Accept(Visitor& visitor) const override
+	std::any Accept(VisitorExpr& visitor) const override
 	{
 		return visitor.Visit(*this);
 	}
 };
+struct Variable  : Expr
+{
+	Token name;
+	explicit Variable (Token name_)
+		: name(std::move(name_))
+		{}
+	std::any Accept(VisitorExpr& visitor) const override
+	{
+		return visitor.Visit(*this);
+	}
+};
+
+} //namespace expr
+
+namespace stmt 
+{
+
+struct Expression ;
+struct Print      ;
+struct Var        ;
+
+struct VisitorStmt
+{
+	virtual ~VisitorStmt() = default;
+	virtual std::any Visit(const Expression & val) = 0;
+	virtual std::any Visit(const Print      & val) = 0;
+	virtual std::any Visit(const Var        & val) = 0;
+};
+struct Stmt
+{
+	virtual ~Stmt() = default;
+	virtual std::any Accept(VisitorStmt& visitor) const = 0;
+};
+
+using StmtPtr = std::unique_ptr<Stmt>; 
+
+struct Expression  : Stmt
+{
+	std::unique_ptr<expr::Expr> expression;
+	explicit Expression (std::unique_ptr<expr::Expr> expression_)
+		: expression(std::move(expression_))
+		{}
+	std::any Accept(VisitorStmt& visitor) const override
+	{
+		return visitor.Visit(*this);
+	}
+};
+struct Print       : Stmt
+{
+	std::unique_ptr<expr::Expr> expression;
+	explicit Print      (std::unique_ptr<expr::Expr> expression_)
+		: expression(std::move(expression_))
+		{}
+	std::any Accept(VisitorStmt& visitor) const override
+	{
+		return visitor.Visit(*this);
+	}
+};
+struct Var         : Stmt
+{
+	Token name;
+	std::unique_ptr<expr::Expr> initializer;
+	explicit Var        (Token name_, std::unique_ptr<expr::Expr> initializer_)
+		: name(std::move(name_))
+		, initializer(std::move(initializer_))
+		{}
+	std::any Accept(VisitorStmt& visitor) const override
+	{
+		return visitor.Visit(*this);
+	}
+};
+
+} //namespace stmt
 }//namespace ast

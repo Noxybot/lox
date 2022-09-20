@@ -14,11 +14,11 @@ void Run(std::string source) noexcept(false)
 	Lexer l{ std::move(source) };
 	auto tokens = l.GetTokens();
 	Parser p{ std::move(tokens) };
-	auto expr = p.Parse();
+	auto stmts = p.Parse();
 	if (has_error)
 		return;
 	static Interpreter i;
-	i.Interpret(*expr);
+	i.Interpret(stmts);
 	//ASTPrinter printer;
 	//std::cout << printer.Print(*expr) << std::endl;
 
