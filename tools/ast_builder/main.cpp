@@ -5,7 +5,6 @@
 #include <span>
 #include <ranges>
 #include <vector>
-#include <filesystem>
 #include <sstream>
 
 constexpr std::string_view VERSION{ "1.0.0" };
@@ -44,6 +43,7 @@ int main(int argc, char** argv)
 	DefineAST(file, "Expr", {{
 		"Assign   ^Token-name,Expr-value",
 		"Binary   ^Expr-left,Token-op,Expr-right",
+		"Call     ^Expr-callee,Token-paren,std::vector<ExprPtr>-arguments",
 		"Grouping ^Expr-expression",
 		"Logical  ^Expr-left,Token-op,Expr-right",
 		"Literal  ^LiteralT-value",
@@ -55,8 +55,10 @@ int main(int argc, char** argv)
 	DefineAST(file, "Stmt", { {
 		"Block      ^std::vector<StmtPtr>-statements",
 		"Expression ^Expr-expression",
+		"Function   ^Token-name,std::vector<Token>-params,std::vector<StmtPtr>-body",
 		"If         ^Expr-condition,StmtPtr-then_branch,StmtPtr-else_branch",
 		"Print      ^Expr-expression",
+		"Return     ^Token-keyword,Expr-value",
 		"Var        ^Token-name,Expr-initializer",
 		"While      ^Expr-condition,StmtPtr-body"
 		} }, true);

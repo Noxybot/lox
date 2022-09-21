@@ -15,6 +15,7 @@ namespace expr
 
 struct Assign   ;
 struct Binary   ;
+struct Call     ;
 struct Grouping ;
 struct Logical  ;
 struct Literal  ;
@@ -26,6 +27,7 @@ struct VisitorExpr
 	virtual ~VisitorExpr() = default;
 	virtual std::any Visit(const Assign   & val) = 0;
 	virtual std::any Visit(const Binary   & val) = 0;
+	virtual std::any Visit(const Call     & val) = 0;
 	virtual std::any Visit(const Grouping & val) = 0;
 	virtual std::any Visit(const Logical  & val) = 0;
 	virtual std::any Visit(const Literal  & val) = 0;
@@ -62,6 +64,21 @@ struct Binary    : Expr
 		: left(std::move(left_))
 		, op(std::move(op_))
 		, right(std::move(right_))
+		{}
+	std::any Accept(VisitorExpr& visitor) const override
+	{
+		return visitor.Visit(*this);
+	}
+};
+struct Call      : Expr
+{
+	std::unique_ptr<Expr> callee;
+	Token paren;
+	std::vector<ExprPtr> arguments;
+	explicit Call     (std::unique_ptr<Expr> callee_, Token paren_, std::vector<ExprPtr> arguments_)
+		: callee(std::move(callee_))
+		, paren(std::move(paren_))
+		, arguments(std::move(arguments_))
 		{}
 	std::any Accept(VisitorExpr& visitor) const override
 	{
@@ -137,8 +154,10 @@ namespace stmt
 
 struct Block      ;
 struct Expression ;
+struct Function   ;
 struct If         ;
 struct Print      ;
+struct Return     ;
 struct Var        ;
 struct While      ;
 
@@ -147,8 +166,10 @@ struct VisitorStmt
 	virtual ~VisitorStmt() = default;
 	virtual std::any Visit(const Block      & val) = 0;
 	virtual std::any Visit(const Expression & val) = 0;
+	virtual std::any Visit(const Function   & val) = 0;
 	virtual std::any Visit(const If         & val) = 0;
 	virtual std::any Visit(const Print      & val) = 0;
+	virtual std::any Visit(const Return     & val) = 0;
 	virtual std::any Visit(const Var        & val) = 0;
 	virtual std::any Visit(const While      & val) = 0;
 };
@@ -182,6 +203,21 @@ struct Expression  : Stmt
 		return visitor.Visit(*this);
 	}
 };
+struct Function    : Stmt
+{
+	Token name;
+	std::vector<Token> params;
+	std::vector<StmtPtr> body;
+	explicit Function   (Token name_, std::vector<Token> params_, std::vector<StmtPtr> body_)
+		: name(std::move(name_))
+		, params(std::move(params_))
+		, body(std::move(body_))
+		{}
+	std::any Accept(VisitorStmt& visitor) const override
+	{
+		return visitor.Visit(*this);
+	}
+};
 struct If          : Stmt
 {
 	std::unique_ptr<expr::Expr> condition;
@@ -202,6 +238,19 @@ struct Print       : Stmt
 	std::unique_ptr<expr::Expr> expression;
 	explicit Print      (std::unique_ptr<expr::Expr> expression_)
 		: expression(std::move(expression_))
+		{}
+	std::any Accept(VisitorStmt& visitor) const override
+	{
+		return visitor.Visit(*this);
+	}
+};
+struct Return      : Stmt
+{
+	Token keyword;
+	std::unique_ptr<expr::Expr> value;
+	explicit Return     (Token keyword_, std::unique_ptr<expr::Expr> value_)
+		: keyword(std::move(keyword_))
+		, value(std::move(value_))
 		{}
 	std::any Accept(VisitorStmt& visitor) const override
 	{

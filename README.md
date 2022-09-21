@@ -15,3 +15,16 @@ For now, I think of this work as a skeleton for my own language which will be ta
 * Print
 * Control flow
 * `for` and `while` loops
+* Functions
+
+## Code example
+```python
+fun fib(n) {
+  if (n <= 1) return n;
+  return fib(n - 2) + fib(n - 1);
+}
+
+  var a = clock();
+  print fib(10);
+  print "time: " + (clock() - a);
+```

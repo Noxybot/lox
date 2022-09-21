@@ -26,6 +26,7 @@ public:
 private:
 	ast::stmt::StmtPtr Declaration();
 	ast::stmt::StmtPtr Statement();
+	ast::stmt::StmtPtr Function(const std::string& kind);
 	ast::stmt::StmtPtr ForStatement();
 	ast::stmt::StmtPtr IfStatement();
 	ast::stmt::StmtPtr VarDeclaration();
@@ -33,6 +34,7 @@ private:
 	ast::stmt::StmtPtr ExprStmt();
 	std::vector<ast::stmt::StmtPtr> Block();
 	ast::stmt::StmtPtr PrintStmt();
+	ast::stmt::StmtPtr ReturnStmt();
 
 	ast::expr::ExprPtr Expression();
 	ast::expr::ExprPtr Assigment();
@@ -43,6 +45,8 @@ private:
 	ast::expr::ExprPtr Term();
 	ast::expr::ExprPtr Factor();
 	ast::expr::ExprPtr Unary();
+	ast::expr::ExprPtr FinishCall(ast::expr::ExprPtr callee);
+	ast::expr::ExprPtr Call();
 	ast::expr::ExprPtr Primary();
 
 	const Token& Advance();
@@ -87,6 +91,8 @@ catch (const ParseError& error)
 
 ast::stmt::StmtPtr Parser::Declaration() try
 {
+	if (Match(TokenType::FUN))
+		return Function("function");
 	if (Match(TokenType::VAR))
 		return VarDeclaration();
 	return Statement();
@@ -105,11 +111,34 @@ ast::stmt::StmtPtr Parser::Statement()
 		return IfStatement();
 	if (Match(TokenType::PRINT))
 		return PrintStmt();
+	if (Match(TokenType::RETURN))
+		return ReturnStmt();
 	if (Match(TokenType::WHILE))
 		return WhileStatement();
 	if (Match(TokenType::LEFT_BRACE))
 		return std::make_unique<ast::stmt::Block>(Block());
 	return ExprStmt();
+}
+
+ast::stmt::StmtPtr Parser::Function(const std::string& kind)
+{
+	auto name = ConsumeType(TokenType::IDENTIFIER, "Expect" + kind + " name.");
+	ConsumeType(TokenType::LEFT_PAREN, "Expect '(' after " + kind + " name.");
+	std::vector<Token> parameters;
+	if (!CheckCurrentType(TokenType::RIGHT_PAREN))
+	{
+		do
+		{
+			if (parameters.size() >= 255)
+				Error(Peek(), "Can't have more than 255 parameters.");
+			parameters.push_back(ConsumeType(TokenType::IDENTIFIER, "Expect parameter name."));
+		} while (Match(TokenType::COMMA));
+	}
+	ConsumeType(TokenType::RIGHT_PAREN, "Expect ')' after parameters.");
+	ConsumeType(TokenType::LEFT_BRACE, "Expect '{' before " + kind + " body.");
+	auto body = Block();
+	return std::make_unique<ast::stmt::Function>
+		(std::move(name), std::move(parameters), std::move(body));
 }
 
 ast::stmt::StmtPtr Parser::ForStatement()
@@ -207,6 +236,16 @@ ast::stmt::StmtPtr Parser::PrintStmt()
 	auto expr = Expression();
 	ConsumeType(TokenType::SEMICOLON, "Expect ';' after value.");
 	return std::make_unique<ast::stmt::Print>(std::move(expr));
+}
+
+ast::stmt::StmtPtr Parser::ReturnStmt()
+{
+	auto keyword = Previous();
+	ast::expr::ExprPtr val;
+	if (!CheckCurrentType(TokenType::SEMICOLON))
+		val = Expression();
+	ConsumeType(TokenType::SEMICOLON, "Expect ';' after return value.");
+	return std::make_unique<ast::stmt::Return>(std::move(keyword), std::move(val));
 }
 
 ast::expr::ExprPtr Parser::Expression()
@@ -320,7 +359,37 @@ ast::expr::ExprPtr Parser::Unary()
 		return std::make_unique<ast::expr::Unary>
 			(std::move(op), std::move(right));
 	}
-	return Primary();
+	return Call();
+}
+
+ast::expr::ExprPtr Parser::FinishCall(ast::expr::ExprPtr callee)
+{
+	std::vector<ast::expr::ExprPtr> arguments;
+	if (!CheckCurrentType(TokenType::RIGHT_PAREN))
+	{
+		do
+		{
+			if (arguments.size() >= 255)
+				Error(Peek(), "Can't have more than 255 arguments.");
+			arguments.push_back(Expression());
+		} while (Match(TokenType::COMMA));
+	}
+	auto paren = ConsumeType(TokenType::RIGHT_PAREN, "Expect ')' after arguments.");
+	return std::make_unique<ast::expr::Call>
+		(std::move(callee), std::move(paren), std::move(arguments));
+}
+
+ast::expr::ExprPtr Parser::Call()
+{
+	auto expr = Primary();
+	while (true)
+	{
+		if (Match(TokenType::LEFT_PAREN))
+			expr = FinishCall(std::move(expr));
+		else
+			break;
+	}
+	return expr;
 }
 
 ast::expr::ExprPtr Parser::Primary()

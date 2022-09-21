@@ -1,3 +1,3 @@
-add_library(interpreter "interpreter.ixx"  "enviroment.ixx")
+add_library(interpreter "interpreter.ixx" "enviroment.ixx" "loxcallable.ixx" "interpreter.cpp")
 
-target_link_libraries(interpreter PUBLIC PRIVATE ast logger)
+target_link_libraries(interpreter PUBLIC PRIVATE ast logger scope_exit)

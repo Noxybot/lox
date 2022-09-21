@@ -4,4 +4,3 @@ add_executable(
 )
 
 target_link_libraries(ast_builder PUBLIC PRIVATE)
-
