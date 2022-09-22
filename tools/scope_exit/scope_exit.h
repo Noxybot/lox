@@ -43,10 +43,3 @@ private:
 };
 
 #define SCOPE_EXIT ScopeExit UNIQUE_NAME(tmp) = [&]
-
-/*
-#undef PP_CAT
-#undef PP_CAT_I
-#undef PP_CAT_II
-#undef UNIQUE_NAME
-*/

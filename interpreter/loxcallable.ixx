@@ -59,8 +59,7 @@ public:
 		
 		for (int i = 0; i < m_declaration.params.size(); ++i)
 		{
-			environment->Define(m_declaration.params[i].m_lexeme,
-				arguments[i]);
+			environment->Define(m_declaration.params[i].m_lexeme, arguments[i]);
 		}
 		try
 		{

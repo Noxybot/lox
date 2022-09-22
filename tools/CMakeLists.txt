@@ -1,3 +1,3 @@
-add_subdirectory(ast_builder)
+add_subdirectory(ast_generator)
 add_subdirectory(ast_printer)
 add_subdirectory(scope_exit)
