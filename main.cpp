@@ -5,6 +5,7 @@
 
 import lexer;
 import parser;
+import resolver;
 import interpreter;
 import log;
 import ast_printer;
@@ -18,6 +19,11 @@ void Run(std::string source) noexcept(false)
 	if (has_error)
 		return;
 	static Interpreter i;
+	Resolver r(i);
+	r.Resolve(stmts);
+	//Stop if there was a resolution error.
+	if (has_error)
+		return;
 	i.Interpret(stmts);
 	//ASTPrinter printer;
 	//std::cout << printer.Print(*expr) << std::endl;

@@ -16,6 +16,7 @@ For now, I think of this work as a skeleton for my own language which will be ta
 * Control flow
 * `for` and `while` loops
 * Functions
+* Resolving and binding variables
 
 ## Code example
 ```python
@@ -27,4 +28,13 @@ fun fib(n) {
   var a = clock();
   print fib(10);
   print "time: " + (clock() - a);
+```
+
+```python
+var a = "outer";
+{
+  var a = "inner";
+  print a;
+}
+//prints outer outer
 ```

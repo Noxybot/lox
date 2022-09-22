@@ -92,13 +92,25 @@ std::any Interpreter::Visit(const ast::stmt::Block& val)
 std::any Interpreter::Visit(const ast::expr::Assign& val)
 {
 	auto value = Evaluate(*val.value);
-	m_environment->Assign(val.name, value);
+	const auto distance_it = m_locals.find(val);
+	if (distance_it != std::end(m_locals))
+		m_environment->AssignAt(distance_it->second, val.name, std::move(value));
+	else
+		m_globals->Assign(val.name, std::move(value));
 	return value;
 }
 
 std::any Interpreter::Visit(const ast::expr::Variable& val)
 {
-	return m_environment->Get(val.name);
+	return LookUpVariable(val.name, val);
+}
+
+std::any Interpreter::LookUpVariable(const Token& name, const ast::expr::Expr& expr)
+{
+	const auto distance_it = m_locals.find(expr);
+	if (distance_it != std::end(m_locals))
+		return m_environment->GetAt(distance_it->second, name.m_lexeme);
+	return m_globals->Get(name);
 }
 
 std::any Interpreter::Visit(const ast::expr::Binary& val)
@@ -226,6 +238,11 @@ std::any Interpreter::Visit(const ast::expr::Unary& val)
 void Interpreter::Execute(const ast::stmt::Stmt& stmt)
 {
 	stmt.Accept(*this);
+}
+
+void Interpreter::Resolve(const ast::expr::Expr& expr, int depth)
+{
+	m_locals.emplace(expr, depth);
 }
 
 void Interpreter::ExecuteBlock(const std::vector<ast::stmt::StmtPtr>& statements, std::shared_ptr<Environment> environment)
