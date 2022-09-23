@@ -25,10 +25,10 @@ public:
 	}
 	Environment& Ancestor(int distance)
 	{
-		Environment& res = *this;
+		auto* res = this;
 		for (int i = 0; i < distance; ++i)
-			res = *(res.m_enclosing);
-		return res;
+			res = res->m_enclosing.get();
+		return *res;
 	}
 	std::any GetAt(int distance, std::string_view name)
 	{

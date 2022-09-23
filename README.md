@@ -5,7 +5,7 @@ Implementation of the Lox scripting language from a beautiful book [Crafting Int
 ## Description
 The WIP C++ implementation of Lox programming language. The main goals of this work is to utilize and practiсe modern C++20, especially such features as modules, ranges, smart pointers, etc.  
 
-The generation of AST's tree was done by the `ast_builder` tool, which was also written in C++ to produce modern C++20 code.
+The generation of AST's tree was done by the `ast_generator` tool, which was also written in C++ to produce modern C++20 code.
 
 For now, I think of this work as a skeleton for my own language which will be targeted at writing microservices.
 
@@ -17,6 +17,7 @@ For now, I think of this work as a skeleton for my own language which will be ta
 * `for` and `while` loops
 * Functions
 * Resolving and binding variables
+* Classes, properties, methods, this, init-constructors
 
 ## Code example
 ```python
@@ -36,5 +37,21 @@ var a = "outer";
   var a = "inner";
   print a;
 }
-//prints outer outer
+//prints "outer outer"
+```
+
+```python
+class Thing {
+  getCallback() {
+    fun localFunction() {
+      print this;
+    }
+
+    return localFunction;
+  }
+}
+
+var callback = Thing().getCallback();
+callback();
+//prints "Thing instance"
 ```

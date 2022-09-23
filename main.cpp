@@ -59,15 +59,10 @@ int main(int argc, char** argv) try
 		std::cerr << "Usage: ./clox [script]\n";
 		return 64;
 	}
-	
 	if (argc == 2)
-	{
 		RunFile(argv[1]);
-	}
 	else
-	{
 		RunPrompt();
-	}
 	if (has_error)
 		return 65;
 	if (has_runtime_error)

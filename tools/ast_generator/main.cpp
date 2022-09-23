@@ -44,9 +44,12 @@ int main(int argc, char** argv)
 		"Assign   ^Token-name,Expr-value",
 		"Binary   ^Expr-left,Token-op,Expr-right",
 		"Call     ^Expr-callee,Token-paren,std::vector<ExprPtr>-arguments",
+		"Get      ^Expr-object,Token-name",
 		"Grouping ^Expr-expression",
 		"Logical  ^Expr-left,Token-op,Expr-right",
+		"Set      ^Expr-object,Token-name,Expr-value",
 		"Literal  ^LiteralT-value",
+		"This     ^Token-keyword",
 		"Unary    ^Token-op,Expr-right",
 		"Variable ^Token-name"
 		} } );
@@ -54,6 +57,7 @@ int main(int argc, char** argv)
 	file << "\nnamespace stmt \n{\n\n";
 	DefineAST(file, "Stmt", { {
 		"Block      ^std::vector<StmtPtr>-statements",
+		"Class      ^Token-name,std::vector<std::unique_ptr<Function>>-methods",
 		"Expression ^Expr-expression",
 		"Function   ^Token-name,std::vector<Token>-params,std::vector<StmtPtr>-body",
 		"If         ^Expr-condition,StmtPtr-then_branch,StmtPtr-else_branch",

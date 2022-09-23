@@ -16,9 +16,12 @@ namespace expr
 struct Assign   ;
 struct Binary   ;
 struct Call     ;
+struct Get      ;
 struct Grouping ;
 struct Logical  ;
+struct Set      ;
 struct Literal  ;
+struct This     ;
 struct Unary    ;
 struct Variable ;
 
@@ -28,9 +31,12 @@ struct VisitorExpr
 	virtual std::any Visit(const Assign   & val) = 0;
 	virtual std::any Visit(const Binary   & val) = 0;
 	virtual std::any Visit(const Call     & val) = 0;
+	virtual std::any Visit(const Get      & val) = 0;
 	virtual std::any Visit(const Grouping & val) = 0;
 	virtual std::any Visit(const Logical  & val) = 0;
+	virtual std::any Visit(const Set      & val) = 0;
 	virtual std::any Visit(const Literal  & val) = 0;
+	virtual std::any Visit(const This     & val) = 0;
 	virtual std::any Visit(const Unary    & val) = 0;
 	virtual std::any Visit(const Variable & val) = 0;
 };
@@ -85,6 +91,19 @@ struct Call      : Expr
 		return visitor.Visit(*this);
 	}
 };
+struct Get       : Expr
+{
+	std::unique_ptr<Expr> object;
+	Token name;
+	explicit Get      (std::unique_ptr<Expr> object_, Token name_)
+		: object(std::move(object_))
+		, name(std::move(name_))
+		{}
+	std::any Accept(VisitorExpr& visitor) const override
+	{
+		return visitor.Visit(*this);
+	}
+};
 struct Grouping  : Expr
 {
 	std::unique_ptr<Expr> expression;
@@ -111,11 +130,37 @@ struct Logical   : Expr
 		return visitor.Visit(*this);
 	}
 };
+struct Set       : Expr
+{
+	std::unique_ptr<Expr> object;
+	Token name;
+	std::unique_ptr<Expr> value;
+	explicit Set      (std::unique_ptr<Expr> object_, Token name_, std::unique_ptr<Expr> value_)
+		: object(std::move(object_))
+		, name(std::move(name_))
+		, value(std::move(value_))
+		{}
+	std::any Accept(VisitorExpr& visitor) const override
+	{
+		return visitor.Visit(*this);
+	}
+};
 struct Literal   : Expr
 {
 	LiteralT value;
 	explicit Literal  (LiteralT value_)
 		: value(std::move(value_))
+		{}
+	std::any Accept(VisitorExpr& visitor) const override
+	{
+		return visitor.Visit(*this);
+	}
+};
+struct This      : Expr
+{
+	Token keyword;
+	explicit This     (Token keyword_)
+		: keyword(std::move(keyword_))
 		{}
 	std::any Accept(VisitorExpr& visitor) const override
 	{
@@ -153,6 +198,7 @@ namespace stmt
 {
 
 struct Block      ;
+struct Class      ;
 struct Expression ;
 struct Function   ;
 struct If         ;
@@ -165,6 +211,7 @@ struct VisitorStmt
 {
 	virtual ~VisitorStmt() = default;
 	virtual std::any Visit(const Block      & val) = 0;
+	virtual std::any Visit(const Class      & val) = 0;
 	virtual std::any Visit(const Expression & val) = 0;
 	virtual std::any Visit(const Function   & val) = 0;
 	virtual std::any Visit(const If         & val) = 0;
@@ -186,6 +233,19 @@ struct Block       : Stmt
 	std::vector<StmtPtr> statements;
 	explicit Block      (std::vector<StmtPtr> statements_)
 		: statements(std::move(statements_))
+		{}
+	std::any Accept(VisitorStmt& visitor) const override
+	{
+		return visitor.Visit(*this);
+	}
+};
+struct Class       : Stmt
+{
+	Token name;
+	std::vector<std::unique_ptr<Function>> methods;
+	explicit Class      (Token name_, std::vector<std::unique_ptr<Function>> methods_)
+		: name(std::move(name_))
+		, methods(std::move(methods_))
 		{}
 	std::any Accept(VisitorStmt& visitor) const override
 	{

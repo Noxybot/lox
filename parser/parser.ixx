@@ -25,8 +25,9 @@ public:
 	std::vector<ast::stmt::StmtPtr> Parse();
 private:
 	ast::stmt::StmtPtr Declaration();
+	ast::stmt::StmtPtr ClassDeclaration();
 	ast::stmt::StmtPtr Statement();
-	ast::stmt::StmtPtr Function(const std::string& kind);
+	std::unique_ptr<ast::stmt::Function> Function(const std::string& kind);
 	ast::stmt::StmtPtr ForStatement();
 	ast::stmt::StmtPtr IfStatement();
 	ast::stmt::StmtPtr VarDeclaration();
@@ -91,6 +92,8 @@ catch (const ParseError& error)
 
 ast::stmt::StmtPtr Parser::Declaration() try
 {
+	if (Match(TokenType::CLASS))
+		return ClassDeclaration();
 	if (Match(TokenType::FUN))
 		return Function("function");
 	if (Match(TokenType::VAR))
@@ -101,6 +104,19 @@ catch (const ParseError& err)
 {
 	Synchronize();
 	return nullptr;
+}
+
+ast::stmt::StmtPtr Parser::ClassDeclaration()
+{
+	auto name = ConsumeType(TokenType::IDENTIFIER, "Expect class name.");
+	ConsumeType(TokenType::LEFT_BRACE, "Expect '{' before class body.");
+	std::vector<std::unique_ptr<ast::stmt::Function>> methods;
+	while (!CheckCurrentType(TokenType::RIGHT_BRACE) && !IsAtEnd())
+	{
+		methods.push_back(Function("method"));
+	}
+	ConsumeType(TokenType::RIGHT_BRACE, "Expect '}' after class body.");
+	return std::make_unique<ast::stmt::Class>(std::move(name), std::move(methods));
 }
 
 ast::stmt::StmtPtr Parser::Statement()
@@ -120,7 +136,7 @@ ast::stmt::StmtPtr Parser::Statement()
 	return ExprStmt();
 }
 
-ast::stmt::StmtPtr Parser::Function(const std::string& kind)
+std::unique_ptr<ast::stmt::Function> Parser::Function(const std::string& kind)
 {
 	auto name = ConsumeType(TokenType::IDENTIFIER, "Expect" + kind + " name.");
 	ConsumeType(TokenType::LEFT_PAREN, "Expect '(' after " + kind + " name.");
@@ -261,10 +277,16 @@ ast::expr::ExprPtr Parser::Assigment()
 		auto equals = Previous();
 		auto value = Assigment();
 		const auto var = dynamic_cast<ast::expr::Variable*>(expr.get());
+		const auto getter = dynamic_cast<ast::expr::Get*>(expr.get());
 		if (var)
 		{
 			auto name = var->name;
 			return std::make_unique<ast::expr::Assign>(std::move(name), std::move(value));
+		}
+		else if (getter)
+		{
+			return std::make_unique<ast::expr::Set>
+				(std::move(getter->object), getter->name, std::move(value));
 		}
 		Error(equals, "Invalid assigment target.");
 	}
@@ -386,6 +408,11 @@ ast::expr::ExprPtr Parser::Call()
 	{
 		if (Match(TokenType::LEFT_PAREN))
 			expr = FinishCall(std::move(expr));
+		else if (Match(TokenType::DOT))
+		{
+			auto name = ConsumeType(TokenType::IDENTIFIER, "Expect property name after '.'.");
+			expr = std::make_unique<ast::expr::Get>(std::move(expr), std::move(name));
+		}
 		else
 			break;
 	}
@@ -402,6 +429,8 @@ ast::expr::ExprPtr Parser::Primary()
 		return std::make_unique<ast::expr::Literal>(std::monostate{});
 	if (Match(TokenType::NUMBER, TokenType::STRING))
 		return std::make_unique<ast::expr::Literal>(Previous().m_literal);
+	if (Match(TokenType::THIS))
+		return std::make_unique<ast::expr::This>(Previous());
 	if (Match(TokenType::IDENTIFIER))
 		return std::make_unique<ast::expr::Variable>(Previous());
 	if (Match(TokenType::LEFT_PAREN))

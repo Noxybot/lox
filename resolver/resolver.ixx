@@ -14,6 +14,13 @@ enum class FunctionType
 {
 	NONE,
 	FUNCTION,
+	INITIALIZER,
+	METHOD,
+};
+enum class ClassType
+{
+	NONE,
+	CLASS,
 };
 
 export class Resolver : ast::expr::VisitorExpr, ast::stmt::VisitorStmt
@@ -21,6 +28,8 @@ export class Resolver : ast::expr::VisitorExpr, ast::stmt::VisitorStmt
 	Interpreter& m_interpreter;
 	std::vector<std::unordered_map<std::string, bool>> m_scopes;
 	FunctionType m_current_function_type = FunctionType::NONE;
+	ClassType m_current_class_type = ClassType::NONE;
+
 public:
 	explicit Resolver(Interpreter& interpreter);
 	void Resolve(const std::vector<ast::stmt::StmtPtr>& statements);
@@ -33,14 +42,18 @@ private:
 	std::any Visit(const ast::stmt::Var& val) override;
 	std::any Visit(const ast::stmt::While& val) override;
 	std::any Visit(const ast::stmt::Block& val) override;
+	std::any Visit(const ast::stmt::Class& val) override;
 
 	std::any Visit(const ast::expr::Assign& val) override;
 	std::any Visit(const ast::expr::Variable& val) override;
 	std::any Visit(const ast::expr::Binary& val) override;
 	std::any Visit(const ast::expr::Call& val) override;
+	std::any Visit(const ast::expr::Get& val) override;
 	std::any Visit(const ast::expr::Grouping& val) override;
 	std::any Visit(const ast::expr::Literal& val) override;
 	std::any Visit(const ast::expr::Logical& val) override;
+	std::any Visit(const ast::expr::Set& val) override;
+	std::any Visit(const ast::expr::This& val) override;
 	std::any Visit(const ast::expr::Unary& val) override;
 
 	void BeginScope();
@@ -95,7 +108,11 @@ std::any Resolver::Visit(const ast::stmt::Return& val)
 	if (m_current_function_type == FunctionType::NONE)
 		Error(val.keyword, "Can't return form top-level code.");
 	if (val.value)
+	{
+		if (m_current_function_type == FunctionType::INITIALIZER)
+			Error(val.keyword, "Can't return a value from an initializer.");
 		Resolve(*val.value);
+	}
 	return {};
 }
 
@@ -123,6 +140,25 @@ std::any Resolver::Visit(const ast::stmt::Block& val)
 	return {};
 }
 
+std::any Resolver::Visit(const ast::stmt::Class& val)
+{
+	auto enclosing_class = m_current_class_type;
+	m_current_class_type = ClassType::CLASS;
+	Define(val.name);
+	BeginScope();
+	m_scopes.back()["this"] = true;
+	for (const auto& method : val.methods)
+	{
+		auto declaration = FunctionType::METHOD;
+		if (method->name.m_lexeme == "init")
+			declaration = FunctionType::INITIALIZER;
+		ResolveFunction(*method, declaration);
+	}
+	EndScope();
+	m_current_class_type = enclosing_class;
+	return {};
+}
+
 std::any Resolver::Visit(const ast::expr::Assign& val)
 {
 	Resolve(*val.value);
@@ -132,11 +168,14 @@ std::any Resolver::Visit(const ast::expr::Assign& val)
 
 std::any Resolver::Visit(const ast::expr::Variable& val)
 {
-	const auto& scope = m_scopes.back();
-	const auto it = scope.find(val.name.m_lexeme);
-	if (it != std::end(scope) && it->second == false)
+	if (!m_scopes.empty())
 	{
-		Error(val.name, "Can't read local variable in its own initializer.");
+		const auto& scope = m_scopes.back();
+		const auto it = scope.find(val.name.m_lexeme);
+		if (it != std::end(scope) && it->second == false)
+		{
+			Error(val.name, "Can't read local variable in its own initializer.");
+		}
 	}
 	ResolveLocal(val, val.name);
 	return {};
@@ -157,6 +196,12 @@ std::any Resolver::Visit(const ast::expr::Call& val)
 	return {};
 }
 
+std::any Resolver::Visit(const ast::expr::Get& val)
+{
+	Resolve(*val.object);
+	return {};
+}
+
 std::any Resolver::Visit(const ast::expr::Grouping& val)
 {
 	Resolve(*val.expression);
@@ -172,6 +217,24 @@ std::any Resolver::Visit(const ast::expr::Logical& val)
 {
 	Resolve(*val.left);
 	Resolve(*val.right);
+	return {};
+}
+
+std::any Resolver::Visit(const ast::expr::Set& val)
+{
+	Resolve(*val.value);
+	Resolve(*val.object);
+	return {};
+}
+
+std::any Resolver::Visit(const ast::expr::This& val)
+{
+	if (m_current_class_type == ClassType::NONE)
+	{
+		Error(val.keyword, "Can't use 'this' outside of a class.");
+		return {};
+	}
+	ResolveLocal(val, val.keyword);
 	return {};
 }
 

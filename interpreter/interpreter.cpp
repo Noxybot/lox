@@ -7,6 +7,7 @@ module interpreter;
 import ast;
 import core;
 import log;
+import :loxclass;
 import :loxcallable;
 
 import <any>;
@@ -86,6 +87,24 @@ std::any Interpreter::Visit(const ast::stmt::While& val)
 std::any Interpreter::Visit(const ast::stmt::Block& val)
 {
 	ExecuteBlock(val.statements, std::make_shared<Environment>(m_environment));
+	return {};
+}
+
+std::any Interpreter::Visit(const ast::stmt::Class& val)
+{
+	m_environment->Define(val.name.m_lexeme, {});
+
+	std::unordered_map<std::string, std::shared_ptr<LoxFunction>> methods;
+	for (const auto& method : val.methods)
+	{
+		auto function = std::make_shared<LoxFunction>(
+			*method, m_environment, method->name.m_lexeme == "init");
+		methods[method->name.m_lexeme] = std::move(function);
+	}
+
+	auto klass = static_pointer_cast<LoxCallable>(
+		std::make_shared<LoxClass>(val.name.m_lexeme, std::move(methods)));
+	m_environment->Assign(val.name, std::move(klass));
 	return {};
 }
 
@@ -188,6 +207,16 @@ std::any Interpreter::Visit(const ast::expr::Call& val)
 	return function->Call(*this, arguments);
 }
 
+std::any Interpreter::Visit(const ast::expr::Get& val)
+{
+	auto object = Evaluate(*val.object);
+	if (CheckAnyType<std::shared_ptr<LoxInstance>>(object))
+	{
+		return std::any_cast<std::shared_ptr<LoxInstance>>(object)->Get(val.name);
+	}
+	throw RuntimeError(val.name, "Only instances have properties.");
+}
+
 
 std::any Interpreter::Visit(const ast::expr::Grouping& val)
 {
@@ -219,6 +248,23 @@ std::any Interpreter::Visit(const ast::expr::Logical& val)
 	else if (!IsTruthy(left))
 		return left;
 	return Evaluate(*val.right);
+}
+
+std::any Interpreter::Visit(const ast::expr::Set& val)
+{
+	auto object = Evaluate(*val.object);
+	if (!CheckAnyType<std::shared_ptr<LoxInstance>>(object))
+	{
+		throw RuntimeError(val.name, "Only instances have fields.");
+	}
+	auto value = Evaluate(*val.value);
+	std::any_cast<std::shared_ptr<LoxInstance>>(object)->Set(val.name, std::move(value));
+	return value;
+}
+
+std::any Interpreter::Visit(const ast::expr::This& val)
+{
+	return LookUpVariable(val.keyword, val);
 }
 
 std::any Interpreter::Visit(const ast::expr::Unary& val)
@@ -318,6 +364,13 @@ std::string Interpreter::Stringify(const std::any& val)
 		ss << std::boolalpha << std::any_cast<bool>(val);
 		return ss.str();
 	}
+	if (CheckAnyType<std::shared_ptr<LoxCallable>>(val))
+		return std::any_cast<std::shared_ptr<LoxCallable>>(val)->ToString();
+	if (CheckAnyType<std::shared_ptr<LoxClass>>(val))
+		return std::any_cast<std::shared_ptr<LoxClass>>(val)->ToString();
+	if (CheckAnyType<std::shared_ptr<LoxInstance>>(val))
+		return std::any_cast<std::shared_ptr<LoxInstance>>(val)->ToString();
+
 	//should be unreacable
 	throw std::runtime_error("Can`t stringify type.");
 }

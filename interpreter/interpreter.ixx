@@ -50,15 +50,19 @@ private:
 	std::any Visit(const ast::stmt::Var& val) override;
 	std::any Visit(const ast::stmt::While& val) override;
 	std::any Visit(const ast::stmt::Block& val) override;
+	std::any Visit(const ast::stmt::Class& val) override;
 
 	std::any Visit(const ast::expr::Assign& val) override;
 	std::any Visit(const ast::expr::Variable& val) override;
 	std::any LookUpVariable(const Token& name, const ast::expr::Expr& expr);
 	std::any Visit(const ast::expr::Binary& val) override;
 	std::any Visit(const ast::expr::Call& val) override;
+	std::any Visit(const ast::expr::Get& val) override;
 	std::any Visit(const ast::expr::Grouping& val) override;
 	std::any Visit(const ast::expr::Literal& val) override;
 	std::any Visit(const ast::expr::Logical& val) override;
+	std::any Visit(const ast::expr::Set& val) override;
+	std::any Visit(const ast::expr::This& val) override;
 	std::any Visit(const ast::expr::Unary& val) override;
 
 	void Execute(const ast::stmt::Stmt& stmt);
