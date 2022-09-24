@@ -109,6 +109,12 @@ catch (const ParseError& err)
 ast::stmt::StmtPtr Parser::ClassDeclaration()
 {
 	auto name = ConsumeType(TokenType::IDENTIFIER, "Expect class name.");
+	std::unique_ptr<ast::expr::Variable> superclass;
+	if (Match(TokenType::LESS))
+	{
+		ConsumeType(TokenType::IDENTIFIER, "Expect superclass name.");
+		superclass = std::make_unique<ast::expr::Variable>(Previous());
+	}
 	ConsumeType(TokenType::LEFT_BRACE, "Expect '{' before class body.");
 	std::vector<std::unique_ptr<ast::stmt::Function>> methods;
 	while (!CheckCurrentType(TokenType::RIGHT_BRACE) && !IsAtEnd())
@@ -116,7 +122,8 @@ ast::stmt::StmtPtr Parser::ClassDeclaration()
 		methods.push_back(Function("method"));
 	}
 	ConsumeType(TokenType::RIGHT_BRACE, "Expect '}' after class body.");
-	return std::make_unique<ast::stmt::Class>(std::move(name), std::move(methods));
+	return std::make_unique<ast::stmt::Class>(
+		std::move(name), std::move(superclass), std::move(methods));
 }
 
 ast::stmt::StmtPtr Parser::Statement()
@@ -429,6 +436,13 @@ ast::expr::ExprPtr Parser::Primary()
 		return std::make_unique<ast::expr::Literal>(std::monostate{});
 	if (Match(TokenType::NUMBER, TokenType::STRING))
 		return std::make_unique<ast::expr::Literal>(Previous().m_literal);
+	if (Match(TokenType::SUPER))
+	{
+		auto keyword = Previous();
+		ConsumeType(TokenType::DOT, "Expect '.' after 'super'.");
+		auto method = ConsumeType(TokenType::IDENTIFIER, "Expect superclass method name.");
+		return std::make_unique<ast::expr::Super>(std::move(keyword), std::move(method));
+	}
 	if (Match(TokenType::THIS))
 		return std::make_unique<ast::expr::This>(Previous());
 	if (Match(TokenType::IDENTIFIER))

@@ -21,6 +21,7 @@ enum class ClassType
 {
 	NONE,
 	CLASS,
+	SUBCLASS,
 };
 
 export class Resolver : ast::expr::VisitorExpr, ast::stmt::VisitorStmt
@@ -53,6 +54,7 @@ private:
 	std::any Visit(const ast::expr::Literal& val) override;
 	std::any Visit(const ast::expr::Logical& val) override;
 	std::any Visit(const ast::expr::Set& val) override;
+	std::any Visit(const ast::expr::Super& val) override;
 	std::any Visit(const ast::expr::This& val) override;
 	std::any Visit(const ast::expr::Unary& val) override;
 
@@ -145,6 +147,20 @@ std::any Resolver::Visit(const ast::stmt::Class& val)
 	auto enclosing_class = m_current_class_type;
 	m_current_class_type = ClassType::CLASS;
 	Define(val.name);
+	if (val.superclass && val.name.m_lexeme == val.superclass->name.m_lexeme)
+	{
+		Error(val.superclass->name, "A class can't inherit from itself.");
+	}
+	if (val.superclass)
+	{
+		m_current_class_type = ClassType::SUBCLASS;
+		Resolve(*val.superclass);
+	}
+	if (val.superclass)
+	{
+		BeginScope();
+		m_scopes.back()["super"] = true;
+	}
 	BeginScope();
 	m_scopes.back()["this"] = true;
 	for (const auto& method : val.methods)
@@ -155,6 +171,8 @@ std::any Resolver::Visit(const ast::stmt::Class& val)
 		ResolveFunction(*method, declaration);
 	}
 	EndScope();
+	if (val.superclass)
+		EndScope();
 	m_current_class_type = enclosing_class;
 	return {};
 }
@@ -224,6 +242,20 @@ std::any Resolver::Visit(const ast::expr::Set& val)
 {
 	Resolve(*val.value);
 	Resolve(*val.object);
+	return {};
+}
+
+std::any Resolver::Visit(const ast::expr::Super& val)
+{
+	if (m_current_class_type == ClassType::NONE)
+	{
+		Error(val.keyword, "Can't use 'super' outside of a class.");
+	}
+	else if (m_current_class_type != ClassType::SUBCLASS)
+	{
+		Error(val.keyword, "Can't use 'super' in a class with no superclass.");
+	}
+	ResolveLocal(val, val.keyword);
 	return {};
 }
 

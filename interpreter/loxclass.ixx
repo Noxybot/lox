@@ -14,11 +14,14 @@ export class LoxClass : public LoxCallable, public std::enable_shared_from_this<
 {
 	friend class LoxInstance;
 	const std::string m_name;
+	const std::shared_ptr<LoxClass> m_superclass;
 	std::unordered_map<std::string, std::shared_ptr<LoxFunction>> m_methods;
 public:
 	explicit LoxClass(std::string name,
+		std::shared_ptr<LoxClass> superclass,
 		std::unordered_map<std::string, std::shared_ptr<LoxFunction>> methods)
 		: m_name(std::move(name))
+		, m_superclass(std::move(superclass))
 		, m_methods(std::move(methods))
 	{}
 	int Arity() const
@@ -52,6 +55,8 @@ public:
 		const auto it = m_methods.find(name);
 		if (it != std::end(m_methods))
 			return it->second;
+		if (m_superclass)
+			return m_superclass->FindMethod(name);
 		return nullptr;
 	}
 };

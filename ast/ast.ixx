@@ -21,6 +21,7 @@ struct Grouping ;
 struct Logical  ;
 struct Set      ;
 struct Literal  ;
+struct Super    ;
 struct This     ;
 struct Unary    ;
 struct Variable ;
@@ -36,6 +37,7 @@ struct VisitorExpr
 	virtual std::any Visit(const Logical  & val) = 0;
 	virtual std::any Visit(const Set      & val) = 0;
 	virtual std::any Visit(const Literal  & val) = 0;
+	virtual std::any Visit(const Super    & val) = 0;
 	virtual std::any Visit(const This     & val) = 0;
 	virtual std::any Visit(const Unary    & val) = 0;
 	virtual std::any Visit(const Variable & val) = 0;
@@ -156,6 +158,19 @@ struct Literal   : Expr
 		return visitor.Visit(*this);
 	}
 };
+struct Super     : Expr
+{
+	Token keyword;
+	Token method;
+	explicit Super    (Token keyword_, Token method_)
+		: keyword(std::move(keyword_))
+		, method(std::move(method_))
+		{}
+	std::any Accept(VisitorExpr& visitor) const override
+	{
+		return visitor.Visit(*this);
+	}
+};
 struct This      : Expr
 {
 	Token keyword;
@@ -242,9 +257,11 @@ struct Block       : Stmt
 struct Class       : Stmt
 {
 	Token name;
+	std::unique_ptr<expr::Variable> superclass;
 	std::vector<std::unique_ptr<Function>> methods;
-	explicit Class      (Token name_, std::vector<std::unique_ptr<Function>> methods_)
+	explicit Class      (Token name_, std::unique_ptr<expr::Variable> superclass_, std::vector<std::unique_ptr<Function>> methods_)
 		: name(std::move(name_))
+		, superclass(std::move(superclass_))
 		, methods(std::move(methods_))
 		{}
 	std::any Accept(VisitorStmt& visitor) const override

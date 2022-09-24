@@ -62,6 +62,7 @@ private:
 	std::any Visit(const ast::expr::Literal& val) override;
 	std::any Visit(const ast::expr::Logical& val) override;
 	std::any Visit(const ast::expr::Set& val) override;
+	std::any Visit(const ast::expr::Super& val) override;
 	std::any Visit(const ast::expr::This& val) override;
 	std::any Visit(const ast::expr::Unary& val) override;
 

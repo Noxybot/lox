@@ -66,6 +66,10 @@ public:
 		}
 		throw RuntimeError(name, "Undefined variable'" + name.m_lexeme + "'.");
 	}
+	const std::shared_ptr<Environment>& GetEnclosing() const
+	{
+		return m_enclosing;
+	}
 };
 
 

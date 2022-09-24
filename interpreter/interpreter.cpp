@@ -92,7 +92,26 @@ std::any Interpreter::Visit(const ast::stmt::Block& val)
 
 std::any Interpreter::Visit(const ast::stmt::Class& val)
 {
+	std::shared_ptr<LoxClass> superclass;
+	if (val.superclass)
+	{
+		auto sup = Evaluate(*val.superclass);
+		if (!CheckAnyType<std::shared_ptr<LoxCallable>>(sup))
+		{
+			throw RuntimeError(val.superclass->name, "Superclass must be a class.");
+		}
+		superclass = std::dynamic_pointer_cast<LoxClass>(std::any_cast<std::shared_ptr<LoxCallable>>(sup));
+		if (!superclass)
+			throw RuntimeError(val.superclass->name, "Superclass must be a class.");
+	}
+
 	m_environment->Define(val.name.m_lexeme, {});
+
+	if (val.superclass)
+	{
+		m_environment = std::make_shared<Environment>(std::move(m_environment));
+		m_environment->Define("super", superclass);
+	}
 
 	std::unordered_map<std::string, std::shared_ptr<LoxFunction>> methods;
 	for (const auto& method : val.methods)
@@ -103,7 +122,11 @@ std::any Interpreter::Visit(const ast::stmt::Class& val)
 	}
 
 	auto klass = static_pointer_cast<LoxCallable>(
-		std::make_shared<LoxClass>(val.name.m_lexeme, std::move(methods)));
+		std::make_shared<LoxClass>(val.name.m_lexeme,
+			std::move(superclass),
+			std::move(methods)));
+	if (val.superclass)
+		m_environment = m_environment->GetEnclosing();
 	m_environment->Assign(val.name, std::move(klass));
 	return {};
 }
@@ -260,6 +283,33 @@ std::any Interpreter::Visit(const ast::expr::Set& val)
 	auto value = Evaluate(*val.value);
 	std::any_cast<std::shared_ptr<LoxInstance>>(object)->Set(val.name, std::move(value));
 	return value;
+}
+
+std::any Interpreter::Visit(const ast::expr::Super& val)
+{
+	const auto it = m_locals.find(val);
+	if (it == std::end(m_locals))
+		return {};
+	auto sup = m_environment->GetAt(it->second, "super");
+	if (CheckAnyType<std::shared_ptr<LoxClass>>(sup))
+	{
+		auto obj = m_environment->GetAt(it->second - 1, "this");
+		if (CheckAnyType<std::shared_ptr<LoxInstance>>(obj))
+		{
+			auto method = std::any_cast<std::shared_ptr<LoxClass>>(sup)
+				->FindMethod(val.method.m_lexeme);
+
+			if (!method)
+			{
+				throw RuntimeError(val.method,
+					"Undefined property' " + val.method.m_lexeme + "'.");
+			}
+
+			method->Bind(std::any_cast<std::shared_ptr<LoxInstance>>(obj));
+			return static_pointer_cast<LoxCallable>(method);
+		}
+	}
+	return {};
 }
 
 std::any Interpreter::Visit(const ast::expr::This& val)

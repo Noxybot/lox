@@ -17,7 +17,8 @@ For now, I think of this work as a skeleton for my own language which will be ta
 * `for` and `while` loops
 * Functions
 * Resolving and binding variables
-* Classes, properties, methods, this, init-constructors
+* Classes, properties, methods, `this`, init-constructors
+* Inheritance, access to `super` class methods
 
 ## Code example
 ```python
@@ -37,7 +38,7 @@ var a = "outer";
   var a = "inner";
   print a;
 }
-//prints "outer outer"
+#prints "outer outer"
 ```
 
 ```python
@@ -53,5 +54,25 @@ class Thing {
 
 var callback = Thing().getCallback();
 callback();
-//prints "Thing instance"
+#prints "Thing instance"
+```
+
+```python
+class Doughnut {
+  cook() {
+    print "Fry until golden brown.";
+  }
+}
+
+class BostonCream < Doughnut {
+  cook() {
+    super.cook();
+    print "Pipe full of custard and coat with chocolate.";
+  }
+}
+
+BostonCream().cook();
+#prints 
+Fry until golden brown.
+Pipe full of custard and coat with chocolate.
 ```
