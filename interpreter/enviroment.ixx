@@ -8,20 +8,29 @@ import <string>;
 import <memory>;
 import <unordered_map>;
 
+template<class T>
+bool CheckAnyType(const std::any& val);
+
 export class Environment
 {
 	std::unordered_map<std::string, std::any> m_values;
 	std::shared_ptr<Environment> m_enclosing;
+	std::unordered_map<std::string, std::string> m_strings_cache;
 public:
 	Environment() = default;
 	explicit Environment(std::shared_ptr<Environment> enclosing)
 		: m_enclosing(std::move(enclosing))
 	{}
-	void Define(std::string_view name, const std::any& value)
+	void Define(std::string_view name, std::any value)
 	{
-		auto res = m_values.emplace(name, value);
-		if (!res.second)
-			res.first->second = value;
+		if (CheckAnyType<std::string>(value))
+			Define(name, std::move(std::any_cast<std::string&>(value)));
+		else
+			m_values.insert(std::make_pair(std::string(name), std::move(value)));
+	}
+	void Define(std::string_view name, std::string str)
+	{
+		m_strings_cache.insert(std::make_pair(std::string(name), std::move(str)));
 	}
 	Environment& Ancestor(int distance)
 	{
@@ -42,8 +51,14 @@ public:
 	{
 		Ancestor(distance).m_values[name.m_lexeme] = std::move(val);
 	}
-	const std::any& Get(const Token& name)
+	std::any Get(const Token& name)
 	{
+		const auto str_it = m_strings_cache.find(name.m_lexeme);
+		if (str_it != std::end(m_strings_cache))
+		{
+			return std::reference_wrapper<const std::string>(str_it->second);
+		}
+
 		const auto it = m_values.find(name.m_lexeme);
 		if (it != std::end(m_values))
 			return it->second;

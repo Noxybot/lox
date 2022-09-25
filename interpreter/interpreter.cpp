@@ -7,6 +7,7 @@ module interpreter;
 import ast;
 import core;
 import log;
+//import utils;
 import :loxclass;
 import :loxcallable;
 
@@ -21,14 +22,25 @@ import <vector>;
 import <iostream>;
 
 template<class T>
-bool CheckAnyType(const std::any& val) try
+bool CheckAnyType(const std::any& val)
 {
-	(void)std::any_cast<T>(val);
-	return true;
+	return typeid(T) == val.type();
 }
-catch (...)
+
+template<>
+bool CheckAnyType<std::string>(const std::any& val)
 {
-	return false;
+	return CheckAnyType<std::reference_wrapper<const std::string>>(val) || typeid(std::string) == val.type()
+		|| CheckAnyType<std::reference_wrapper<std::string>>(val);
+}
+
+const std::string& GetStringRef(const std::any& str)
+{
+	if (typeid(std::reference_wrapper<const std::string>) == str.type())
+		return std::any_cast<std::reference_wrapper<const std::string>>(str);
+	if (typeid(std::string) == str.type())
+		return std::any_cast<const std::string&>(str);
+	return std::any_cast<std::reference_wrapper<std::string>>(str);
 }
 
 std::any Interpreter::Visit(const ast::stmt::Expression& val)
@@ -73,7 +85,7 @@ std::any Interpreter::Visit(const ast::stmt::Var& val)
 	std::any value;
 	if (val.initializer)
 		value = Evaluate(*val.initializer);
-	m_environment->Define(val.name.m_lexeme, value);
+	m_environment->Define(val.name.m_lexeme, std::move(value));
 	return {};
 }
 
@@ -105,7 +117,7 @@ std::any Interpreter::Visit(const ast::stmt::Class& val)
 			throw RuntimeError(val.superclass->name, "Superclass must be a class.");
 	}
 
-	m_environment->Define(val.name.m_lexeme, {});
+	m_environment->Define(val.name.m_lexeme, std::any{});
 
 	if (val.superclass)
 	{
@@ -179,17 +191,17 @@ std::any Interpreter::Visit(const ast::expr::Binary& val)
 		if (CheckAnyType<std::string>(left) &&
 			CheckAnyType<std::string>(right))
 		{
-			return std::any_cast<std::string>(left) + std::any_cast<std::string>(right);
+			return GetStringRef(left) + GetStringRef(right);
 		}
 		if (CheckAnyType<std::string>(left) &&
 			CheckAnyType<double>(right))
 		{
-			return std::any_cast<std::string>(left) + std::to_string(std::any_cast<double>(right));
+			return GetStringRef(left) + std::to_string(std::any_cast<double>(right));
 		}
 		if (CheckAnyType<double>(left) &&
 			CheckAnyType<std::string>(right))
 		{
-			return std::to_string(std::any_cast<double>(left)) + std::any_cast<std::string>(right);
+			return std::to_string(std::any_cast<double>(left)) + GetStringRef(right);
 		}
 		throw RuntimeError(val.op, "Operands must be two numbers or two strings.");
 		break;
@@ -370,16 +382,14 @@ bool Interpreter::IsEqual(const std::any& left, const std::any& right)
 		return true;
 	if (!left.has_value())
 		return false;
-	if (left.type().hash_code() == right.type().hash_code())
+	if (left.type() == right.type())
 	{
 		if (CheckAnyType<bool>(left))
 			return std::any_cast<bool>(left) == std::any_cast<bool>(right);
 		if (CheckAnyType<double>(left))
 			return std::any_cast<double>(left) == std::any_cast<double>(right);
 		if (CheckAnyType<std::string>(left))
-			return std::any_cast<std::string>(left) == std::any_cast<std::string>(right);
-		if (CheckAnyType<double>(left))
-			return std::any_cast<double>(left) == std::any_cast<double>(right);
+			return GetStringRef(left) == GetStringRef(right);
 		return false;
 	}
 	return false;
@@ -407,7 +417,7 @@ std::string Interpreter::Stringify(const std::any& val)
 	if (CheckAnyType<double>(val))
 		return std::to_string(std::any_cast<double>(val));
 	if (CheckAnyType<std::string>(val))
-		return std::any_cast<std::string>(val);
+		return GetStringRef(val);
 	if (CheckAnyType<bool>(val))
 	{
 		std::stringstream ss;

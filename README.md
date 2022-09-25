@@ -76,3 +76,29 @@ BostonCream().cook();
 Fry until golden brown.
 Pipe full of custard and coat with chocolate.
 ```
+
+## Optimizations
+
+* Compare `typeid` in `CheckAnyType` instead of using `std::any_cast` and catching exceptions. It improves perfomance by 20 times in equality.lox benchmark.
+* Cache strings in Environment, avoid unnecessary copies when compairing and accessing strings.
+```bash
+# Before optimization
+>lox.exe equality.lox
+loop
+18.000000
+elapsed
+553.000000
+equals
+535.000000
+# After
+>lox.exe equality.lox
+loop
+7.000000
+elapsed
+14.000000
+equals
+7.000000
+```
+
+## TODO
+* Add string pool (same as in Java)

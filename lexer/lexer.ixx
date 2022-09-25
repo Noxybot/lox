@@ -43,6 +43,7 @@ static std::unordered_map<std::string_view, TokenType> keywords
 	{"for", TokenType::FOR},
 	{"fun", TokenType::FUN},
 	{"if", TokenType::IF},
+	{"nil", TokenType::NIL},
 	{"or", TokenType::OR},
 	{"print", TokenType::PRINT},
 	{"return", TokenType::RETURN},
