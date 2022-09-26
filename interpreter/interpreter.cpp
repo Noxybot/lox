@@ -71,6 +71,7 @@ std::any Interpreter::Visit(const ast::stmt::Print& val)
 	std::cout << Stringify(res) << std::endl;
 	return {};
 }
+
 std::any Interpreter::Visit(const ast::stmt::Return& val)
 {
 	std::any ret_val;
@@ -78,7 +79,6 @@ std::any Interpreter::Visit(const ast::stmt::Return& val)
 		ret_val = Evaluate(*val.value);
 	throw Return(std::move(ret_val));
 }
-
 
 std::any Interpreter::Visit(const ast::stmt::Var& val)
 {
@@ -229,11 +229,12 @@ std::any Interpreter::Visit(const ast::expr::Call& val)
 {
 	auto callee = Evaluate(*val.callee);
 	std::vector<std::any> arguments;
+	arguments.reserve(val.arguments.size());
 	for (const auto& argument : val.arguments)
 		arguments.push_back(Evaluate(*argument));
 	if (!CheckAnyType<std::shared_ptr<LoxCallable>>(callee))
 		throw RuntimeError(val.paren, "Can only call functions and classes.");
-	auto function = std::any_cast<std::shared_ptr<LoxCallable>>(callee);
+	const auto& function = std::any_cast<std::shared_ptr<LoxCallable>&>(callee);
 	if (arguments.size() != function->Arity())
 	{
 		throw RuntimeError(val.paren, "Expected " + std::to_string(function->Arity()) +
@@ -247,7 +248,7 @@ std::any Interpreter::Visit(const ast::expr::Get& val)
 	auto object = Evaluate(*val.object);
 	if (CheckAnyType<std::shared_ptr<LoxInstance>>(object))
 	{
-		return std::any_cast<std::shared_ptr<LoxInstance>>(object)->Get(val.name);
+		return std::any_cast<std::shared_ptr<LoxInstance>&>(object)->Get(val.name);
 	}
 	throw RuntimeError(val.name, "Only instances have properties.");
 }
@@ -316,9 +317,7 @@ std::any Interpreter::Visit(const ast::expr::Super& val)
 				throw RuntimeError(val.method,
 					"Undefined property' " + val.method.m_lexeme + "'.");
 			}
-
-			method->Bind(std::any_cast<std::shared_ptr<LoxInstance>>(obj));
-			return static_pointer_cast<LoxCallable>(method);
+			return static_pointer_cast<LoxCallable>(method->Bind(std::any_cast<std::shared_ptr<LoxInstance>>(obj)));
 		}
 	}
 	return {};

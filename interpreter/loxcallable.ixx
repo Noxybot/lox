@@ -56,11 +56,11 @@ public:
 	{}
 	//for some reason, when I fwd LoxInstance class, the linker can't find LoxInstance methods while resovling symbols in interpreter.obj
 	template<class T>
-	void Bind(std::shared_ptr<T> instance)
+	std::shared_ptr<LoxFunction> Bind(std::shared_ptr<T> instance)
 	{
-		auto environment = std::make_shared<Environment>(std::move(m_closure));
+		auto environment = std::make_shared<Environment>(m_closure);
 		environment->Define("this", std::move(instance));
-		m_closure = std::move(environment);
+		return std::make_shared<LoxFunction>(m_declaration, std::move(environment));
 	}
 
 	int Arity() const override
@@ -89,6 +89,7 @@ public:
 			return m_closure->GetAt(0, "this");
 		return {};
 	}
+
 	std::string ToString() const override
 	{
 		return "<fn " + m_declaration.name.m_lexeme + ">";

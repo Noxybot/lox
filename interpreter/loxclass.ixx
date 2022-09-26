@@ -38,10 +38,7 @@ public:
 			std::make_shared<LoxInstance>(shared_from_this());
 		const auto initializer = FindMethod("init");
 		if (initializer)
-		{
-			initializer->Bind(instance);
-			initializer->Call(interpreter, arguments);
-		}
+			initializer->Bind(instance)->Call(interpreter, arguments);
 		return instance;
 	}
 
@@ -80,10 +77,7 @@ public:
 			return it->second;
 		auto method = m_class->FindMethod(name.m_lexeme);
 		if (method)
-		{
-			method->Bind(shared_from_this());
-			return std::static_pointer_cast<LoxCallable>(method);
-		}
+			return std::static_pointer_cast<LoxCallable>(method->Bind(shared_from_this()));
 		throw RuntimeError(name, "Undefined property'" + name.m_lexeme + "'.");
 	}
 	void Set(const Token& name, std::any value)
